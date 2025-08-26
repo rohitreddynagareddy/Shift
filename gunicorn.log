@@ -1,0 +1,6 @@
+/home/jules/.pyenv/versions/3.12.11/lib/python3.12/site-packages/gunicorn/util.py:25: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+[2025-08-25 16:35:20 +0000] [10581] [INFO] Starting gunicorn 20.1.0
+[2025-08-25 16:35:20 +0000] [10581] [INFO] Listening at: http://0.0.0.0:5001 (10581)
+[2025-08-25 16:35:20 +0000] [10581] [INFO] Using worker: sync
+[2025-08-25 16:35:20 +0000] [10711] [INFO] Booting worker with pid: 10711
