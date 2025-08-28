@@ -144,3 +144,4 @@ const App = () => {
     </div>
   );
 };
+window.App = App;
