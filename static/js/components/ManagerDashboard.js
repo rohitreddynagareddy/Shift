@@ -15,7 +15,8 @@ const ManagerDashboard = ({ managerData }) => {
     return <div className="p-8">Loading...</div>;
   }
 
-  const { operationalPulse, futureCast, teamWellness } = managerData;
+  const { operationalPulse, futureCast, teamWellness, teamTickets } = managerData;
+  const { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } = Recharts;
 
   const getSeverityClass = (severity) => {
     switch (severity) {
@@ -32,6 +33,20 @@ const ManagerDashboard = ({ managerData }) => {
       default: return 'text-blue-500';
     }
   };
+
+  const teamTicketChart = (
+    <ResponsiveContainer width="100%" height={300}>
+      <BarChart data={teamTickets} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+        <CartesianGrid strokeDasharray="3 3" vertical={false} />
+        <XAxis dataKey="name" />
+        <YAxis />
+        <Tooltip wrapperClassName="bg-white shadow-lg rounded-lg p-2" />
+        <Legend />
+        <Bar dataKey="serviceNow" stackId="a" fill="#3b82f6" name="ServiceNow" />
+        <Bar dataKey="jira" stackId="a" fill="#10b981" name="Jira" />
+      </BarChart>
+    </ResponsiveContainer>
+  );
 
   return (
     <div className="p-8 bg-gray-100">
@@ -111,9 +126,7 @@ const ManagerDashboard = ({ managerData }) => {
 
       <DashboardCard>
           <h3 className="font-bold text-xl mb-4 text-gray-800">Team Ticket Distribution</h3>
-          <div id="team-ticket-chart" style={{ width: '100%', height: '300px' }}>
-            <div className="flex items-center justify-center h-full text-gray-500">Chart Placeholder</div>
-          </div>
+          {teamTicketChart}
       </DashboardCard>
     </div>
   );

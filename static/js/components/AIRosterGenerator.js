@@ -3,8 +3,9 @@ const AIRosterGenerator = () => {
   const [rosterError, setRosterError] = React.useState(null);
   const [generatedRoster, setGeneratedRoster] = React.useState(null);
   const [constraints, setConstraints] = React.useState('');
+  const [members, setMembers] = React.useState([]);
+  const [fileName, setFileName] = React.useState('');
 
-  // This helper function renders icons from the global 'lucide' object
   const Icon = (name, props = {}) => {
       const { size = 20, className = '' } = props;
       const camelCaseName = name.charAt(0).toLowerCase() + name.slice(1).replace(/-(\w)/g, g => g[1].toUpperCase());
@@ -16,19 +17,45 @@ const AIRosterGenerator = () => {
       return <span className={className} dangerouslySetInnerHTML={{ __html: iconNode.toSvg({ width: size, height: size }) }} />;
   };
 
+  const handleFileUpload = (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    setFileName(file.name);
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        try {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, { type: 'array' });
+            const employeesSheetName = 'Employees';
+            if (!workbook.SheetNames.includes(employeesSheetName)) {
+                throw new Error(`Excel file must contain a sheet named "${employeesSheetName}".`);
+            }
+            const worksheet = workbook.Sheets[employeesSheetName];
+            const jsonData = XLSX.utils.sheet_to_json(worksheet);
+            if (jsonData.length === 0) {
+                throw new Error('The "Employees" sheet is empty.');
+            }
+            if (!('Name' in jsonData[0]) || !('Role' in jsonData[0])) {
+                throw new Error('The "Employees" sheet must have "Name" and "Role" columns.');
+            }
+            setMembers(jsonData);
+            setRosterError(null);
+        } catch (error) {
+            setRosterError(`Error processing Excel file: ${error.message}`);
+            setMembers([]);
+            setFileName('');
+        }
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
   const handleGenerateRoster = async () => {
     setIsRosterLoading(true);
     setRosterError(null);
+    setGeneratedRoster(null);
 
-    // In a real app, 'members' would come from state updated by the file upload.
-    // For now, I'll use a placeholder from the original mock data.
-    const mockMembers = [
-        { name: 'Rohit', role: 'Development' },
-        { name: 'Keerthi', role: 'Operations' },
-        { name: 'Naresh', role: 'DBA' },
-    ];
-
-    if (mockMembers.length === 0) {
+    if (members.length === 0) {
         setRosterError("No employee data found. Please upload an Excel file with employee details.");
         setIsRosterLoading(false);
         return;
@@ -40,7 +67,7 @@ const AIRosterGenerator = () => {
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ members: mockMembers, constraints }),
+            body: JSON.stringify({ members, constraints }),
         });
 
         if (!response.ok) {
@@ -65,9 +92,9 @@ const AIRosterGenerator = () => {
             <label className="file-input-button bg-blue-500 text-white px-4 py-2 rounded-lg cursor-pointer hover:bg-blue-600 inline-flex items-center">
                 {Icon('Upload', {size: 20, className: 'mr-2'})}
                 <span>Choose File</span>
-                <input type="file" className="hidden" accept=".xlsx, .xls" />
+                <input type="file" className="hidden" accept=".xlsx, .xls" onChange={handleFileUpload} />
             </label>
-            <span className="text-gray-600">No file chosen</span>
+            <span className="text-gray-600">{fileName || 'No file chosen'}</span>
         </div>
     </div>
   );
