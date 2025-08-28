@@ -19,27 +19,41 @@
     </script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
-    <!-- React and ReactDOM for Recharts dependency -->
+    <!-- React and ReactDOM -->
     <script src="https://unpkg.com/react@17/umd/react.development.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js" crossorigin></script>
 
-    <!-- prop-types, a dependency for this version of Recharts -->
-    <script src="https://unpkg.com/prop-types@15.7.2/prop-types.min.js"></script>
+    <!-- Babel Standalone for in-browser JSX transpilation -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
+    <!-- Other libraries -->
     <script src="https://unpkg.com/lucide@latest"></script>
-
-    <!-- Recharts depends on React, ReactDOM and PropTypes -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/recharts/2.12.7/Recharts.min.js"></script>
-
-    <!-- SheetJS/xlsx library for reading Excel files -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+    </style>
 </head>
 <body class="bg-gray-100">
 
-    <div id="app-container" class="flex min-h-screen"></div>
+    <div id="app-container"></div>
 
-    <script type="module" src="{{ url_for('static', filename='js/app.js') }}"></script>
+    <!-- React Components -->
+    <!-- These will be created in the next steps -->
+    <!-- Note: The order of these scripts is important! -->
+    <script type="text/babel" data-presets="react" src="{{ url_for('static', filename='js/components/DashboardCard.js') }}"></script>
+    <script type="text/babel" data-presets="react" src="{{ url_for('static', filename='js/components/Header.js') }}"></script>
+    <script type="text/babel" data-presets="react" src="{{ url_for('static', filename='js/components/Sidebar.js') }}"></script>
+    <script type="text/babel" data-presets="react" src="{{ url_for('static', filename='js/components/ManagerDashboard.js') }}"></script>
+    <script type="text/babel" data-presets="react" src="{{ url_for('static', filename='js/components/AIRosterGenerator.js') }}"></script>
+
+    <!-- Main App Component -->
+    <script type="text/babel" data-presets="react" src="{{ url_for('static', filename='js/App.js') }}"></script>
+
+    <!-- App Initializer -->
+    <script type="text/babel" data-presets="react" src="{{ url_for('static', filename='js/app_init.js') }}"></script>
+
 </body>
 </html>
