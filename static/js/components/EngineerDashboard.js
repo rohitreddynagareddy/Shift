@@ -1,4 +1,4 @@
-const EngineerDashboard = ({ engineerData }) => {
+const EngineerDashboard = ({ engineerData, isAiAgentActive, handleSetAiAgentActive }) => {
   const Icon = (name, props = {}) => {
       const { size = 20, className = '' } = props;
       const camelCaseName = name.charAt(0).toLowerCase() + name.slice(1).replace(/-(\w)/g, g => g[1].toUpperCase());
@@ -73,9 +73,7 @@ const EngineerDashboard = ({ engineerData }) => {
     </DashboardCard>
   );
 
-  const [isLeaveToggleOn, setIsLeaveToggleOn] = React.useState(aiAgent.isOnLeave);
-
-  const aiAgentStatus = isLeaveToggleOn ? (
+  const aiAgentStatus = isAiAgentActive ? (
     <div className="space-y-3 bg-green-50 p-4 rounded-lg">
         <p className="text-sm font-semibold text-green-700 mb-2">AI Backup is Active. It will handle:</p>
         {aiAgent.tasks.map(task => (
@@ -114,9 +112,9 @@ const EngineerDashboard = ({ engineerData }) => {
                   </div>
                   <label htmlFor="leave-toggle" className="flex items-center cursor-pointer">
                       <div className="relative">
-                          <input type="checkbox" id="leave-toggle" className="sr-only" checked={isLeaveToggleOn} onChange={() => setIsLeaveToggleOn(!isLeaveToggleOn)} />
+                          <input type="checkbox" id="leave-toggle" className="sr-only" checked={isAiAgentActive} onChange={() => handleSetAiAgentActive(!isAiAgentActive)} />
                           <div className="block bg-gray-200 w-12 h-7 rounded-full"></div>
-                          <div className={`dot absolute left-1 top-1 w-5 h-5 rounded-full shadow-md transition-transform duration-300 ease-in-out ${isLeaveToggleOn ? 'transform translate-x-full bg-green-500' : 'bg-gray-400'}`}></div>
+                          <div className={`dot absolute left-1 top-1 w-5 h-5 rounded-full shadow-md transition-transform duration-300 ease-in-out ${isAiAgentActive ? 'transform translate-x-full bg-green-500' : 'bg-gray-400'}`}></div>
                       </div>
                   </label>
               </div>

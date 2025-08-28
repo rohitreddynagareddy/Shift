@@ -1,4 +1,4 @@
-const RequestPage = () => {
+const RequestPage = ({ handleSetAiAgentActive }) => {
   const [activeTab, setActiveTab] = React.useState('swap');
 
   const Icon = (name, props = {}) => {
@@ -10,6 +10,15 @@ const RequestPage = () => {
           return <span className={className}><svg width={size} height={size}></svg></span>;
       }
       return <span className={className} dangerouslySetInnerHTML={{ __html: iconNode.toSvg({ width: size, height: size }) }} />;
+  };
+
+  const handleLeaveSubmit = (e) => {
+    e.preventDefault();
+    // In a real app, we would also submit the form data to an API.
+    // For now, we just log it and activate the AI agent.
+    console.log("Leave request submitted. Activating AI Assistant.");
+    handleSetAiAgentActive(true);
+    alert('Leave request submitted and AI Assistant has been activated!');
   };
 
   const renderSwapRequestTab = () => (
@@ -50,7 +59,7 @@ const RequestPage = () => {
     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         <DashboardCard>
             <h3 className="font-bold text-xl mb-4 text-gray-800">Submit a New Leave Request</h3>
-            <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
+            <form className="space-y-4" onSubmit={handleLeaveSubmit}>
                 <div>
                     <label htmlFor="leave-type" className="block text-sm font-medium text-gray-700">Leave Type</label>
                     <select id="leave-type" name="leave-type" className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md">

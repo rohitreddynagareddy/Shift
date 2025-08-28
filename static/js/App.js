@@ -67,10 +67,14 @@ const App = () => {
   const [uploadedFileName, setUploadedFileName] = React.useState(null);
   const [managerData, setManagerData] = React.useState(null);
   const [engineerData, setEngineerData] = React.useState(null);
+  const [isAiAgentActive, setIsAiAgentActive] = React.useState(false);
 
   React.useEffect(() => {
     setManagerData(initialManagerData);
     setEngineerData(initialEngineerData);
+    if (initialEngineerData && initialEngineerData.aiAgent) {
+      setIsAiAgentActive(initialEngineerData.aiAgent.isOnLeave);
+    }
   }, []);
 
   // --- EVENT HANDLERS ---
@@ -84,6 +88,10 @@ const App = () => {
 
   const handleNavigate = (newView) => {
     setView(newView);
+  };
+
+  const handleSetAiAgentActive = (isActive) => {
+    setIsAiAgentActive(isActive);
   };
 
   // --- RENDER LOGIC ---
@@ -104,11 +112,11 @@ const App = () => {
     } else { // Engineer view
       switch (view) {
         case 'home':
-          return <EngineerDashboard engineerData={engineerData} />;
+          return <EngineerDashboard engineerData={engineerData} isAiAgentActive={isAiAgentActive} handleSetAiAgentActive={handleSetAiAgentActive} />;
         case 'schedule':
           return <EngineerSchedule engineerData={engineerData} />;
         case 'request':
-          return <RequestPage />;
+          return <RequestPage handleSetAiAgentActive={handleSetAiAgentActive} />;
         default:
           return <div className="p-8">Page not yet implemented: {view}</div>;
       }
