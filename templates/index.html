@@ -41,25 +41,8 @@
 
     <div id="app-container"></div>
 
-    <!-- React Components -->
-    <!-- These will be created in the next steps -->
-    <!-- Note: The order of these scripts is important! -->
-    <script type="text/babel" data-presets="react" src="{{ url_for('static', filename='js/components/DashboardCard.js') }}"></script>
-    <script type="text/babel" data-presets="react" src="{{ url_for('static', filename='js/components/Header.js') }}"></script>
-    <script type="text/babel" data-presets="react" src="{{ url_for('static', filename='js/components/Sidebar.js') }}"></script>
-    <script type="text/babel" data-presets="react" src="{{ url_for('static', filename='js/components/ManagerDashboard.js') }}"></script>
-    <script type="text/babel" data-presets="react" src="{{ url_for('static', filename='js/components/AIRosterGenerator.js') }}"></script>
-    <script type="text/babel" data-presets="react" src="{{ url_for('static', filename='js/components/EngineerDashboard.js') }}"></script>
-    <script type="text/babel" data-presets="react" src="{{ url_for('static', filename='js/components/TeamAnalytics.js') }}"></script>
-    <script type="text/babel" data-presets="react" src="{{ url_for('static', filename='js/components/ScheduleManager.js') }}"></script>
-    <script type="text/babel" data-presets="react" src="{{ url_for('static', filename='js/components/EngineerSchedule.js') }}"></script>
-    <script type="text/babel" data-presets="react" src="{{ url_for('static', filename='js/components/RequestPage.js') }}"></script>
-
-    <!-- Main App Component -->
-    <script type="text/babel" data-presets="react" src="{{ url_for('static', filename='js/App.js') }}"></script>
-
-    <!-- App Initializer -->
-    <script type="text/babel" data-presets="react" src="{{ url_for('static', filename='js/app_init.js') }}"></script>
+    <!-- Application Bundle -->
+    <script type="text/babel" data-presets="react" src="{{ url_for('static', filename='js/bundle.js') }}"></script>
 
 </body>
 </html>
