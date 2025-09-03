@@ -301,6 +301,32 @@ def update_swap_request_status(request_id):
     log_to_file(f"Updated swap request {request_id} to status: {new_status}")
     return jsonify(request_to_update)
 
+# --- Analytics Endpoints ---
+
+@app.route('/api/analytics/team_averages', methods=['GET'])
+def get_team_averages():
+    log_to_file("Get team averages route was hit.")
+    if not employees_db:
+        return jsonify({
+            "avg_tickets_resolved": 0,
+            "avg_resolution_time": 0,
+            "avg_csat": 0
+        })
+
+    total_tickets = sum(e.get('ticketsResolved', 0) for e in employees_db)
+    total_resolution_time = sum(e.get('avgResolutionTime', 0) for e in employees_db)
+    total_csat = sum(e.get('csat', 0) for e in employees_db)
+    num_employees = len(employees_db)
+
+    averages = {
+        "avg_tickets_resolved": round(total_tickets / num_employees, 1),
+        "avg_resolution_time": round(total_resolution_time / num_employees, 1),
+        "avg_csat": round(total_csat / num_employees, 1)
+    }
+
+    log_to_file(f"Calculated team averages: {json.dumps(averages, indent=2)}")
+    return jsonify(averages)
+
 
 if __name__ == '__main__':
     app.run(debug=True, port=5001)
