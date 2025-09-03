@@ -1122,6 +1122,50 @@ const TeamAnalytics = ({ managerData }) => {
     </div>
   );
 };
+const Notification = ({ notification, onRemove }) => {
+  const { id, message, type } = notification;
+  const [exiting, setExiting] = React.useState(false);
+
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      setExiting(true);
+      setTimeout(() => onRemove(id), 500); // Allow time for exit animation
+    }, 5000); // 5 seconds visible
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  const handleRemove = () => {
+    setExiting(true);
+    setTimeout(() => onRemove(id), 500);
+  };
+
+  const baseClasses = "flex items-center justify-between p-4 rounded-lg shadow-lg text-white transition-all duration-500 transform";
+  const typeClasses = {
+    success: 'bg-green-500',
+    warning: 'bg-yellow-500',
+    error: 'bg-red-500',
+  };
+  const animationClasses = exiting ? 'opacity-0 translate-x-full' : 'opacity-100 translate-x-0';
+
+  return (
+    <div className={`${baseClasses} ${typeClasses[type] || 'bg-gray-500'} ${animationClasses}`}>
+      <span>{message}</span>
+      <button onClick={handleRemove} className="ml-4 font-bold">X</button>
+    </div>
+  );
+};
+
+const NotificationContainer = ({ notifications, onRemove }) => {
+  return (
+    <div className="fixed top-5 right-5 z-50 space-y-2 w-80">
+      {notifications.map(n => (
+        <Notification key={n.id} notification={n} onRemove={onRemove} />
+      ))}
+    </div>
+  );
+};
+
 const App = () => {
   // --- MOCK DATA (Loaded on init) ---
   const initialManagerData = {
@@ -1193,6 +1237,7 @@ const App = () => {
   const [engineerData, setEngineerData] = React.useState(null);
   const [isAiAgentActive, setIsAiAgentActive] = React.useState(false);
   const [leaveRequests, setLeaveRequests] = React.useState([]);
+  const [notifications, setNotifications] = React.useState([]);
 
   // --- EVENT HANDLERS ---
   const handleSwitchUserType = () => {
@@ -1205,6 +1250,15 @@ const App = () => {
 
   const handleNavigate = (newView) => {
     setView(newView);
+  };
+
+  const addNotification = (message, type = 'info') => {
+    const id = Date.now();
+    setNotifications(prev => [...prev, { id, message, type }]);
+  };
+
+  const removeNotification = (id) => {
+    setNotifications(prev => prev.filter(n => n.id !== id));
   };
 
   const handleSetAiAgentActive = async (isActive) => {
@@ -1222,16 +1276,14 @@ const App = () => {
         throw new Error('Failed to update AI agent status');
       }
       const updatedEmployee = await response.json();
-      // Update the local state to match the persisted state
       setIsAiAgentActive(updatedEmployee.isAiAgentActive);
-      // Also update the engineerData object to be consistent
       setEngineerData(prevData => ({
           ...prevData,
           isAiAgentActive: updatedEmployee.isAiAgentActive,
       }));
     } catch (error) {
       console.error("Error updating AI agent status:", error);
-      alert(error.message);
+      addNotification(error.message, 'error');
     }
   };
 
@@ -1247,10 +1299,10 @@ const App = () => {
       }
       const newRequest = await response.json();
       setLeaveRequests(prevRequests => [...prevRequests, newRequest]);
-      alert('Leave request submitted successfully!');
+      addNotification('Leave request submitted successfully!', 'success');
     } catch (error) {
       console.error("Error submitting leave request:", error);
-      alert(error.message);
+      addNotification(error.message, 'error');
     }
   };
 
@@ -1268,13 +1320,19 @@ const App = () => {
       setLeaveRequests(prevRequests =>
         prevRequests.map(req => req.id === requestId ? updatedRequest : req)
       );
-      // Check for and display the conflict warning
+
+      if (updatedRequest.status === 'Approved') {
+        addNotification(`Request ${updatedRequest.id} approved.`, 'success');
+      } else {
+        addNotification(`Request ${updatedRequest.id} rejected.`, 'warning');
+      }
+
       if (updatedRequest.conflict_warning) {
-        alert(updatedRequest.conflict_warning);
+        addNotification(updatedRequest.conflict_warning, 'warning');
       }
     } catch (error) {
       console.error("Error updating leave request:", error);
-      alert(error.message);
+      addNotification(error.message, 'error');
     }
   };
 
@@ -1296,11 +1354,10 @@ const App = () => {
 
         setLeaveRequests(leaveRequests);
 
-        // Set the current engineer based on the first one from the backend
         const firstEngineer = employees[0];
         if (firstEngineer) {
             const fullEngineerData = {
-                ...initialEngineerData, // keep mock data for pulse, etc.
+                ...initialEngineerData,
                 ...firstEngineer,
             };
             setEngineerData(fullEngineerData);
@@ -1309,12 +1366,10 @@ const App = () => {
             setEngineerData(initialEngineerData);
         }
 
-        // Set manager data (can be enhanced later)
         setManagerData(initialManagerData);
 
       } catch (error) {
         console.error("Error fetching initial data:", error);
-        // Fallback to mock data on error
         setManagerData(initialManagerData);
         setEngineerData(initialEngineerData);
         setLeaveRequests([]);
@@ -1357,6 +1412,7 @@ const App = () => {
 
   return (
     <div className="flex bg-gray-100 min-h-screen">
+      <NotificationContainer notifications={notifications} onRemove={removeNotification} />
       <Sidebar
         userType={userType}
         uploadedFileName={uploadedFileName}
