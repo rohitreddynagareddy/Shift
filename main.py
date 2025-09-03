@@ -2,11 +2,15 @@ from flask import Flask, render_template, request, jsonify
 from roster_generator import RosterGenerator
 import json
 import datetime
+from datetime import timedelta
 
 app = Flask(__name__)
 
 # It's better to create a single instance of the generator
 roster_generator_instance = RosterGenerator()
+
+# In-memory data store for the generated roster
+current_roster = {}
 
 # In-memory data store for employees
 employees_db = [
@@ -39,9 +43,11 @@ def generate_roster():
 
     try:
         # Use the roster generator instance
+        global current_roster
         prediction = roster_generator_instance.forward(members=members, constraints=constraints)
-        log_to_file(f"Generated roster: {json.dumps(prediction.roster, indent=2)}")
-        return jsonify(prediction.roster)
+        current_roster = prediction.roster
+        log_to_file(f"Generated and saved roster: {json.dumps(current_roster, indent=2)}")
+        return jsonify(current_roster)
     except Exception as e:
         log_to_file(f"Error generating roster: {e}")
         return jsonify({"error": "Failed to generate roster"}), 500
@@ -115,8 +121,38 @@ def update_leave_request_status(request_id):
     if not request_to_update:
         return jsonify({"error": "Leave request not found"}), 404
 
-    # If approving, update leave balance
+    conflict_warning = None
+    # If approving, do conflict check and update leave balance
     if new_status == 'Approved':
+        # Conflict Detection
+        if current_roster:
+            try:
+                leave_start_date = datetime.datetime.strptime(request_to_update['startDate'], '%Y-%m-%d').date()
+                leave_end_date = datetime.datetime.strptime(request_to_update['endDate'], '%Y-%m-%d').date()
+                engineer_name = request_to_update['engineerName']
+
+                conflicting_days = []
+                delta = leave_end_date - leave_start_date
+
+                for i in range(delta.days + 1):
+                    day = leave_start_date + timedelta(days=i)
+                    day_name = day.strftime('%A') # e.g., "Monday"
+
+                    if day_name in current_roster:
+                        for shift, people in current_roster[day_name].items():
+                            if isinstance(people, list):
+                                if any(p.get('name') == engineer_name for p in people):
+                                    conflicting_days.append(day_name)
+                                    break
+
+                if conflicting_days:
+                    conflict_warning = f"Warning: This leave conflicts with the generated roster on {', '.join(conflicting_days)}."
+                    log_to_file(f"Conflict detected for {engineer_name}: {conflict_warning}")
+
+            except (ValueError, TypeError) as e:
+                log_to_file(f"Error during conflict detection: {e}")
+
+        # Update leave balance
         try:
             start_date = datetime.datetime.strptime(request_to_update['startDate'], '%Y-%m-%d')
             end_date = datetime.datetime.strptime(request_to_update['endDate'], '%Y-%m-%d')
@@ -128,7 +164,6 @@ def update_leave_request_status(request_id):
                     employee['leaveBalance'] -= duration
                     log_to_file(f"Updated {employee['name']}'s leave balance to {employee['leaveBalance']}")
                 else:
-                    # Not enough leave balance, reject the request instead
                     log_to_file(f"Insufficient leave balance for {employee['name']}. Rejecting request.")
                     new_status = 'Rejected'
             else:
@@ -140,7 +175,12 @@ def update_leave_request_status(request_id):
 
     request_to_update['status'] = new_status
     log_to_file(f"Updated leave request {request_id} to status: {new_status}")
-    return jsonify(request_to_update)
+
+    response_data = request_to_update.copy()
+    if conflict_warning:
+        response_data['conflict_warning'] = conflict_warning
+
+    return jsonify(response_data)
 
 if __name__ == '__main__':
     app.run(debug=True, port=5001)

@@ -1268,6 +1268,10 @@ const App = () => {
       setLeaveRequests(prevRequests =>
         prevRequests.map(req => req.id === requestId ? updatedRequest : req)
       );
+      // Check for and display the conflict warning
+      if (updatedRequest.conflict_warning) {
+        alert(updatedRequest.conflict_warning);
+      }
     } catch (error) {
       console.error("Error updating leave request:", error);
       alert(error.message);
