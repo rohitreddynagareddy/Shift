@@ -10,9 +10,9 @@ roster_generator_instance = RosterGenerator()
 
 # In-memory data store for employees
 employees_db = [
-    { "name": 'Rohit', "role": 'Development', "serviceNow": 5, "jira": 8, "csat": 92, "ticketsResolved": 13, "avgResolutionTime": 45, "leaveBalance": 20 },
-    { "name": 'Keerthi', "role": 'Operations', "serviceNow": 3, "jira": 12, "csat": 98, "ticketsResolved": 15, "avgResolutionTime": 30, "leaveBalance": 20 },
-    { "name": 'Naresh', "role": 'DBA', "serviceNow": 7, "jira": 4, "csat": 95, "ticketsResolved": 11, "avgResolutionTime": 55, "leaveBalance": 20 },
+    { "name": 'Rohit', "role": 'Development', "serviceNow": 5, "jira": 8, "csat": 92, "ticketsResolved": 13, "avgResolutionTime": 45, "leaveBalance": 20, "isAiAgentActive": False },
+    { "name": 'Keerthi', "role": 'Operations', "serviceNow": 3, "jira": 12, "csat": 98, "ticketsResolved": 15, "avgResolutionTime": 30, "leaveBalance": 20, "isAiAgentActive": False },
+    { "name": 'Naresh', "role": 'DBA', "serviceNow": 7, "jira": 4, "csat": 95, "ticketsResolved": 11, "avgResolutionTime": 55, "leaveBalance": 20, "isAiAgentActive": False },
 ]
 
 def log_to_file(message):
@@ -50,6 +50,24 @@ def generate_roster():
 def get_employees():
     log_to_file("Get all employees route was hit.")
     return jsonify(employees_db)
+
+@app.route('/api/employees/<string:name>/ai_status', methods=['PUT'])
+def update_ai_status(name):
+    log_to_file(f"Update AI status route was hit for employee: {name}")
+    data = request.get_json()
+    if not data or 'isAiAgentActive' not in data:
+        return jsonify({"error": "Missing 'isAiAgentActive' in request body"}), 400
+
+    is_active = data['isAiAgentActive']
+
+    employee = next((emp for emp in employees_db if emp['name'] == name), None)
+
+    if not employee:
+        return jsonify({"error": "Employee not found"}), 404
+
+    employee['isAiAgentActive'] = is_active
+    log_to_file(f"Updated {name}'s AI agent status to: {is_active}")
+    return jsonify(employee)
 
 # In-memory data store for leave requests
 leave_requests_db = []

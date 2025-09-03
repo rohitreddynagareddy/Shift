@@ -176,6 +176,31 @@ const DashboardCard = ({ children, className = '' }) => {
   );
 };
 const EngineerDashboard = ({ engineerData, isAiAgentActive, handleSetAiAgentActive }) => {
+  const [tasks, setTasks] = React.useState([]);
+
+  React.useEffect(() => {
+    if (engineerData && engineerData.aiAgent && engineerData.aiAgent.tasks) {
+      setTasks(engineerData.aiAgent.tasks);
+    }
+  }, [engineerData]);
+
+  React.useEffect(() => {
+    if (isAiAgentActive) {
+      const taskToComplete = tasks.find(t => t.status === 'In Progress');
+      if (taskToComplete) {
+        const timer = setTimeout(() => {
+          setTasks(currentTasks =>
+            currentTasks.map(t =>
+              t.id === taskToComplete.id ? { ...t, status: 'Completed' } : t
+            )
+          );
+        }, 3000); // 3-second delay to simulate work
+
+        return () => clearTimeout(timer); // Cleanup the timer
+      }
+    }
+  }, [isAiAgentActive, tasks]);
+
   const Icon = (name, props = {}) => {
       const { size = 20, className = '' } = props;
       const camelCaseName = name.charAt(0).toLowerCase() + name.slice(1).replace(/-(\w)/g, g => g[1].toUpperCase());
@@ -192,7 +217,7 @@ const EngineerDashboard = ({ engineerData, isAiAgentActive, handleSetAiAgentActi
   }
 
   const { RadialBarChart, RadialBar, ResponsiveContainer } = Recharts;
-  const { name, personalPulse, weekAhead, myTickets, aiAgent } = engineerData;
+  const { name, personalPulse, weekAhead, myTickets } = engineerData;
   const workloadData = [{ name: 'Workload', value: personalPulse.workload, fill: '#3b82f6' }];
 
   const workloadChart = (
@@ -253,7 +278,7 @@ const EngineerDashboard = ({ engineerData, isAiAgentActive, handleSetAiAgentActi
   const aiAgentStatus = isAiAgentActive ? (
     <div className="space-y-3 bg-green-50 p-4 rounded-lg">
         <p className="text-sm font-semibold text-green-700 mb-2">AI Backup is Active. It will handle:</p>
-        {aiAgent.tasks.map(task => (
+        {tasks.map(task => (
             <div key={task.id} className="flex items-center text-sm text-gray-700">
                 {Icon('CheckCircle', { size: 16, className: 'text-green-600 mr-2 flex-shrink-0' })}
                 <span>{task.name}</span>
@@ -1182,8 +1207,32 @@ const App = () => {
     setView(newView);
   };
 
-  const handleSetAiAgentActive = (isActive) => {
-    setIsAiAgentActive(isActive);
+  const handleSetAiAgentActive = async (isActive) => {
+    if (!engineerData || !engineerData.name) {
+      console.error("Engineer data not available to update AI status.");
+      return;
+    }
+    try {
+      const response = await fetch(`/api/employees/${engineerData.name}/ai_status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isAiAgentActive: isActive }),
+      });
+      if (!response.ok) {
+        throw new Error('Failed to update AI agent status');
+      }
+      const updatedEmployee = await response.json();
+      // Update the local state to match the persisted state
+      setIsAiAgentActive(updatedEmployee.isAiAgentActive);
+      // Also update the engineerData object to be consistent
+      setEngineerData(prevData => ({
+          ...prevData,
+          isAiAgentActive: updatedEmployee.isAiAgentActive,
+      }));
+    } catch (error) {
+      console.error("Error updating AI agent status:", error);
+      alert(error.message);
+    }
   };
 
   const handleLeaveRequestSubmit = async (requestData) => {
@@ -1227,47 +1276,48 @@ const App = () => {
 
   // --- LIFECYCLE ---
   React.useEffect(() => {
-    // Set initial mock data
-    setManagerData(initialManagerData);
-    setEngineerData(initialEngineerData);
-    if (initialEngineerData && initialEngineerData.aiAgent) {
-      setIsAiAgentActive(initialEngineerData.aiAgent.isOnLeave);
-    }
-
-    // Fetch employee data to get leave balances
-    const fetchEmployeeData = async () => {
-        try {
-            const response = await fetch('/api/employees');
-            const employees = await response.json();
-            const currentEngineerName = initialEngineerData.name;
-            const engineerFromServer = employees.find(e => e.name === currentEngineerName);
-            if (engineerFromServer) {
-                setEngineerData(prevData => ({
-                    ...prevData,
-                    leaveBalance: engineerFromServer.leaveBalance,
-                }));
-            }
-        } catch (error) {
-            console.error("Error fetching employee data:", error);
-        }
-    };
-    fetchEmployeeData();
-  }, []);
-
-  React.useEffect(() => {
-    const fetchLeaveRequests = async () => {
+    const fetchInitialData = async () => {
       try {
-        const response = await fetch('/api/leave_requests');
-        if (!response.ok) {
-            throw new Error('Failed to fetch leave requests');
+        const [employeesRes, leaveRes] = await Promise.all([
+          fetch('/api/employees'),
+          fetch('/api/leave_requests')
+        ]);
+
+        if (!employeesRes.ok || !leaveRes.ok) {
+          throw new Error('Failed to fetch initial data');
         }
-        const data = await response.json();
-        setLeaveRequests(data);
+
+        const employees = await employeesRes.json();
+        const leaveRequests = await leaveRes.json();
+
+        setLeaveRequests(leaveRequests);
+
+        // Set the current engineer based on the first one from the backend
+        const firstEngineer = employees[0];
+        if (firstEngineer) {
+            const fullEngineerData = {
+                ...initialEngineerData, // keep mock data for pulse, etc.
+                ...firstEngineer,
+            };
+            setEngineerData(fullEngineerData);
+            setIsAiAgentActive(firstEngineer.isAiAgentActive);
+        } else {
+            setEngineerData(initialEngineerData);
+        }
+
+        // Set manager data (can be enhanced later)
+        setManagerData(initialManagerData);
+
       } catch (error) {
-        console.error("Error fetching leave requests:", error);
+        console.error("Error fetching initial data:", error);
+        // Fallback to mock data on error
+        setManagerData(initialManagerData);
+        setEngineerData(initialEngineerData);
+        setLeaveRequests([]);
       }
     };
-    fetchLeaveRequests();
+
+    fetchInitialData();
   }, []);
 
   // --- RENDER LOGIC ---
