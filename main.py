@@ -39,5 +39,55 @@ def generate_roster():
         log_to_file(f"Error generating roster: {e}")
         return jsonify({"error": "Failed to generate roster"}), 500
 
+# In-memory data store for leave requests
+leave_requests_db = []
+request_id_counter = 0
+
+@app.route('/api/leave_requests', methods=['GET'])
+def get_leave_requests():
+    log_to_file("Get all leave requests route was hit.")
+    return jsonify(leave_requests_db)
+
+@app.route('/api/leave_requests', methods=['POST'])
+def create_leave_request():
+    global request_id_counter
+    log_to_file("Create leave request route was hit.")
+    data = request.get_json()
+    if not data or 'engineerName' not in data or 'startDate' not in data or 'endDate' not in data:
+        return jsonify({"error": "Missing required fields for leave request"}), 400
+
+    request_id_counter += 1
+    new_request = {
+        "id": request_id_counter,
+        "engineerName": data['engineerName'],
+        "startDate": data['startDate'],
+        "endDate": data['endDate'],
+        "reason": data.get('reason', ''),
+        "status": "Pending"
+    }
+    leave_requests_db.append(new_request)
+    log_to_file(f"Created new leave request: {json.dumps(new_request, indent=2)}")
+    return jsonify(new_request), 201
+
+@app.route('/api/leave_requests/<int:request_id>/status', methods=['PUT'])
+def update_leave_request_status(request_id):
+    log_to_file(f"Update status route was hit for request ID: {request_id}")
+    data = request.get_json()
+    if not data or 'status' not in data:
+        return jsonify({"error": "Missing 'status' in request body"}), 400
+
+    new_status = data['status']
+    if new_status not in ['Approved', 'Rejected']:
+        return jsonify({"error": "Invalid status value"}), 400
+
+    request_to_update = next((req for req in leave_requests_db if req['id'] == request_id), None)
+
+    if not request_to_update:
+        return jsonify({"error": "Leave request not found"}), 404
+
+    request_to_update['status'] = new_status
+    log_to_file(f"Updated leave request {request_id} to status: {new_status}")
+    return jsonify(request_to_update)
+
 if __name__ == '__main__':
     app.run(debug=True, port=5001)
