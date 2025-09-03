@@ -175,7 +175,7 @@ const DashboardCard = ({ children, className = '' }) => {
     </div>
   );
 };
-const EngineerDashboard = ({ engineerData, isAiAgentActive, handleSetAiAgentActive }) => {
+const EngineerDashboard = ({ engineerData, isAiAgentActive, handleSetAiAgentActive, onNavigate }) => {
   const [tasks, setTasks] = React.useState([]);
 
   React.useEffect(() => {
@@ -298,10 +298,10 @@ const EngineerDashboard = ({ engineerData, isAiAgentActive, handleSetAiAgentActi
           <DashboardCard className="lg:col-span-1">
               <h3 className="font-bold text-xl mb-4 text-gray-800">Quick Actions</h3>
               <div className="flex flex-col space-y-3">
-                  <button className="w-full bg-blue-500 text-white py-3 rounded-lg hover:bg-blue-600 transition-colors flex items-center justify-center font-semibold">
+                  <button onClick={() => onNavigate('request')} className="w-full bg-blue-500 text-white py-3 rounded-lg hover:bg-blue-600 transition-colors flex items-center justify-center font-semibold">
                       {Icon('ArrowRightLeft', { size: 18, className: 'mr-2' })} Request Shift Swap
                   </button>
-                  <button className="w-full bg-green-500 text-white py-3 rounded-lg hover:bg-green-600 transition-colors flex items-center justify-center font-semibold">
+                  <button onClick={() => onNavigate('request')} className="w-full bg-green-500 text-white py-3 rounded-lg hover:bg-green-600 transition-colors flex items-center justify-center font-semibold">
                       {Icon('LogOut', { size: 18, className: 'mr-2' })} Apply for Leave
                   </button>
               </div>
@@ -1749,7 +1749,7 @@ const App = () => {
     } else { // Engineer view
       switch (view) {
         case 'home':
-          return <EngineerDashboard engineerData={engineerData} isAiAgentActive={isAiAgentActive} handleSetAiAgentActive={handleSetAiAgentActive} />;
+          return <EngineerDashboard engineerData={engineerData} isAiAgentActive={isAiAgentActive} handleSetAiAgentActive={handleSetAiAgentActive} onNavigate={handleNavigate} />;
         case 'schedule':
           return <EngineerSchedule engineerData={engineerData} />;
         case 'request':
