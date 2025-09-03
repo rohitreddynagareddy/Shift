@@ -477,6 +477,122 @@ const Header = ({ userType, engineerName, onSwitchUserType }) => {
     </header>
   );
 };
+const SwapRequestModal = ({ isOpen, onClose, myShift, engineerData, addNotification, onSwapRequestSubmit }) => {
+    const [employees, setEmployees] = React.useState([]);
+    const [selectedEmployee, setSelectedEmployee] = React.useState('');
+    const [colleagueShifts, setColleagueShifts] = React.useState([]);
+    const [selectedColleagueShift, setSelectedColleagueShift] = React.useState(null);
+    const [isLoading, setIsLoading] = React.useState(false);
+
+    React.useEffect(() => {
+        if (isOpen) {
+            // Fetch all employees to populate the dropdown
+            const fetchEmployees = async () => {
+                try {
+                    const response = await fetch('/api/employees');
+                    const allEmployees = await response.json();
+                    // Filter out the current user
+                    const otherEmployees = allEmployees.filter(emp => emp.name !== engineerData.name);
+                    setEmployees(otherEmployees);
+                } catch (error) {
+                    addNotification('Failed to fetch employees', 'error');
+                }
+            };
+            fetchEmployees();
+        } else {
+            // Reset state when modal is closed
+            setSelectedEmployee('');
+            setColleagueShifts([]);
+            setSelectedColleagueShift(null);
+        }
+    }, [isOpen, engineerData.name]);
+
+    React.useEffect(() => {
+        if (selectedEmployee) {
+            // Fetch the selected colleague's shifts
+            const fetchColleagueShifts = async () => {
+                setIsLoading(true);
+                try {
+                    const response = await fetch(`/api/employees/${selectedEmployee}/shifts`);
+                    const shifts = await response.json();
+                    setColleagueShifts(shifts);
+                } catch (error) {
+                    addNotification(`Failed to fetch shifts for ${selectedEmployee}`, 'error');
+                } finally {
+                    setIsLoading(false);
+                }
+            };
+            fetchColleagueShifts();
+        } else {
+            setColleagueShifts([]);
+        }
+    }, [selectedEmployee]);
+
+    const handleSubmit = () => {
+        if (!selectedColleagueShift || !selectedEmployee) {
+            addNotification('Please select a colleague and a shift to swap with.', 'warning');
+            return;
+        }
+        onSwapRequestSubmit(myShift, selectedColleagueShift, selectedEmployee);
+    };
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+            <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-lg">
+                <h2 className="text-2xl font-bold mb-4">Request a Shift Swap</h2>
+
+                <div className="mb-4 p-3 bg-blue-50 rounded-lg">
+                    <p className="font-semibold">Your shift to swap:</p>
+                    <p>{myShift.day} - {myShift.shift} Shift</p>
+                </div>
+
+                <div className="mb-4">
+                    <label htmlFor="colleague-select" className="block text-sm font-medium text-gray-700 mb-1">Swap with:</label>
+                    <select
+                        id="colleague-select"
+                        value={selectedEmployee}
+                        onChange={e => setSelectedEmployee(e.target.value)}
+                        className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
+                    >
+                        <option value="">-- Select a Colleague --</option>
+                        {employees.map(emp => (
+                            <option key={emp.name} value={emp.name}>{emp.name}</option>
+                        ))}
+                    </select>
+                </div>
+
+                {isLoading && <p>Loading shifts...</p>}
+
+                {selectedEmployee && !isLoading && (
+                    <div>
+                        <h3 className="font-semibold mb-2">Available shifts for {selectedEmployee}:</h3>
+                        <div className="space-y-2 max-h-48 overflow-y-auto">
+                            {colleagueShifts.length > 0 ? colleagueShifts.map((shift, index) => (
+                                <div
+                                    key={index}
+                                    onClick={() => setSelectedColleagueShift(shift)}
+                                    className={`p-3 rounded-lg cursor-pointer ${selectedColleagueShift && selectedColleagueShift.day === shift.day && selectedColleagueShift.shift === shift.shift ? 'bg-blue-500 text-white' : 'bg-gray-100 hover:bg-gray-200'}`}
+                                >
+                                    {shift.day} - {shift.shift} Shift
+                                </div>
+                            )) : <p className="text-gray-500">No available shifts for this colleague.</p>}
+                        </div>
+                    </div>
+                )}
+
+                <div className="mt-6 flex justify-end space-x-3">
+                    <button onClick={onClose} className="bg-gray-300 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-400">Cancel</button>
+                    <button onClick={handleSubmit} disabled={!selectedColleagueShift} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:bg-blue-300">
+                        Submit Swap Request
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const ManagerDashboard = ({ managerData }) => {
   // This helper function renders icons from the global 'lucide' object
   const Icon = (name, props = {}) => {
@@ -610,12 +726,99 @@ const ManagerDashboard = ({ managerData }) => {
     </div>
   );
 };
-const RequestPage = ({ handleSetAiAgentActive, engineerData, leaveRequests, onSubmit }) => {
-  const [activeTab, setActiveTab] = React.useState('leave');
+const RequestPage = ({ handleSetAiAgentActive, engineerData, leaveRequests, onSubmit, addNotification }) => {
+  const [activeTab, setActiveTab] = React.useState('swap');
   const [leaveType, setLeaveType] = React.useState('Vacation');
   const [startDate, setStartDate] = React.useState('');
   const [endDate, setEndDate] = React.useState('');
   const [reason, setReason] = React.useState('');
+  const [myShifts, setMyShifts] = React.useState([]);
+  const [swapRequests, setSwapRequests] = React.useState([]);
+  const [isModalOpen, setIsModalOpen] = React.useState(false);
+  const [selectedShift, setSelectedShift] = React.useState(null);
+
+  const fetchSwapRequests = async () => {
+    if (!engineerData || !engineerData.name) return;
+    try {
+      const response = await fetch(`/api/swap_requests?engineerName=${engineerData.name}`);
+      if (!response.ok) throw new Error('Failed to fetch swap requests');
+      const requests = await response.json();
+      setSwapRequests(requests);
+    } catch (error) {
+      addNotification(error.message, 'error');
+    }
+  };
+
+  const handleOpenModal = (shift) => {
+    setSelectedShift(shift);
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setSelectedShift(null);
+  };
+
+  const handleSwapRequestSubmit = async (myShift, colleagueShift, responderName) => {
+    try {
+        const response = await fetch('/api/swap_requests', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                requesterName: engineerData.name,
+                responderName: responderName,
+                requesterShift: myShift,
+                responderShift: colleagueShift,
+            }),
+        });
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Failed to submit swap request');
+        }
+        addNotification('Swap request submitted successfully!', 'success');
+        handleCloseModal();
+        fetchSwapRequests(); // Refetch requests
+    } catch (error) {
+        addNotification(error.message, 'error');
+    }
+  };
+
+  const handleSwapRequestUpdate = async (requestId, status) => {
+    try {
+      const response = await fetch(`/api/swap_requests/${requestId}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      });
+      if (!response.ok) {
+        throw new Error('Failed to update swap request');
+      }
+      addNotification(`Request ${status.toLowerCase()}.`, 'success');
+      fetchSwapRequests(); // Refetch to show updated status
+    } catch (error) {
+      addNotification(error.message, 'error');
+    }
+  };
+
+  React.useEffect(() => {
+    if (activeTab === 'swap' && engineerData && engineerData.name) {
+      const fetchMyShifts = async () => {
+        try {
+          const response = await fetch(`/api/employees/${engineerData.name}/shifts`);
+          if (!response.ok) {
+            throw new Error('Failed to fetch shifts');
+          }
+          const shifts = await response.json();
+          setMyShifts(shifts);
+        } catch (error) {
+          addNotification(error.message, 'error');
+          setMyShifts([]);
+        }
+      };
+      fetchMyShifts();
+      fetchSwapRequests();
+    }
+  }, [activeTab, engineerData]);
 
   const Icon = (name, props = {}) => {
       const { size = 20, className = '' } = props;
@@ -658,29 +861,50 @@ const RequestPage = ({ handleSetAiAgentActive, engineerData, leaveRequests, onSu
         <DashboardCard>
             <h3 className="font-bold text-xl mb-4 text-gray-800">My Upcoming Shifts</h3>
             <div className="space-y-3">
-                {/* Mock data for now */}
-                <div className="bg-gray-50 p-3 rounded-lg flex items-center justify-between">
-                    <div>
-                        <p className="font-bold">July 18, 2025</p>
-                        <p className="text-sm text-gray-600">Morning Shift</p>
-                    </div>
-                    <button className="bg-blue-500 text-white text-sm font-semibold px-3 py-1 rounded-md hover:bg-blue-600">Request Swap</button>
-                </div>
-                 <div className="bg-gray-50 p-3 rounded-lg flex items-center justify-between">
-                    <div>
-                        <p className="font-bold">July 19, 2025</p>
-                        <p className="text-sm text-gray-600">Morning Shift</p>
-                    </div>
-                    <button className="bg-blue-500 text-white text-sm font-semibold px-3 py-1 rounded-md hover:bg-blue-600">Request Swap</button>
-                </div>
+                {myShifts.length > 0 ? (
+                    myShifts.map((shift, index) => (
+                        <div key={index} className="bg-gray-50 p-3 rounded-lg flex items-center justify-between">
+                            <div>
+                                <p className="font-bold">{shift.day}</p>
+                                <p className="text-sm text-gray-600">{shift.shift} Shift</p>
+                            </div>
+                            <button onClick={() => handleOpenModal(shift)} className="bg-blue-500 text-white text-sm font-semibold px-3 py-1 rounded-md hover:bg-blue-600">Request Swap</button>
+                        </div>
+                    ))
+                ) : (
+                    <p className="text-gray-500">You have no upcoming shifts in the roster.</p>
+                )}
             </div>
         </DashboardCard>
         <DashboardCard>
             <h3 className="font-bold text-xl mb-4 text-gray-800">Pending Requests</h3>
-            <div className="space-y-3">
-                <div className="bg-yellow-50 text-yellow-800 p-3 rounded-lg">
-                    <p><span className="font-bold">You requested to swap</span> your Morning shift on Jul 18 with Keerthi.</p>
-                    <p className="text-sm">Status: Pending colleague approval.</p>
+            <div className="space-y-4">
+                <div>
+                    <h4 className="font-semibold text-gray-700 mb-2">Incoming Requests</h4>
+                    {swapRequests.filter(r => r.responderName === engineerData.name && r.status === 'Pending').length > 0 ?
+                        swapRequests.filter(r => r.responderName === engineerData.name && r.status === 'Pending').map(req => (
+                            <div key={req.id} className="bg-blue-50 p-3 rounded-lg">
+                                <p className="text-sm">
+                                    <span className="font-bold">{req.requesterName}</span> wants to swap their <span className="font-bold">{req.requesterShift.day} {req.requesterShift.shift}</span> shift for your <span className="font-bold">{req.responderShift.day} {req.responderShift.shift}</span> shift.
+                                </p>
+                                <div className="mt-2 flex justify-end space-x-2">
+                                    <button onClick={() => handleSwapRequestUpdate(req.id, 'Rejected')} className="bg-red-500 text-white px-3 py-1 text-xs font-bold rounded-md hover:bg-red-600">Reject</button>
+                                    <button onClick={() => handleSwapRequestUpdate(req.id, 'Approved')} className="bg-green-500 text-white px-3 py-1 text-xs font-bold rounded-md hover:bg-green-600">Approve</button>
+                                </div>
+                            </div>
+                        )) : <p className="text-gray-500 text-sm">No incoming requests.</p>
+                    }
+                </div>
+                <div className="border-t pt-4">
+                    <h4 className="font-semibold text-gray-700 mb-2">My Outgoing Requests</h4>
+                    {swapRequests.filter(r => r.requesterName === engineerData.name && r.status === 'Pending').length > 0 ?
+                        swapRequests.filter(r => r.requesterName === engineerData.name && r.status === 'Pending').map(req => (
+                            <div key={req.id} className="bg-yellow-50 p-3 rounded-lg text-sm">
+                                <p>You requested to swap with <span className="font-bold">{req.responderName}</span>.</p>
+                                <p className="text-xs mt-1">Status: Pending colleague approval.</p>
+                            </div>
+                        )) : <p className="text-gray-500 text-sm">No outgoing requests.</p>
+                    }
                 </div>
             </div>
         </DashboardCard>
@@ -760,6 +984,14 @@ const RequestPage = ({ handleSetAiAgentActive, engineerData, leaveRequests, onSu
                 {activeTab === 'swap' ? renderSwapRequestTab() : renderLeaveRequestTab()}
             </div>
         </div>
+        <SwapRequestModal
+            isOpen={isModalOpen}
+            onClose={handleCloseModal}
+            myShift={selectedShift}
+            engineerData={engineerData}
+            addNotification={addNotification}
+            onSwapRequestSubmit={handleSwapRequestSubmit}
+        />
     </div>
   );
 };
@@ -1403,7 +1635,7 @@ const App = () => {
         case 'schedule':
           return <EngineerSchedule engineerData={engineerData} />;
         case 'request':
-          return <RequestPage handleSetAiAgentActive={handleSetAiAgentActive} engineerData={engineerData} leaveRequests={leaveRequests.filter(r => r.engineerName === engineerData.name)} onSubmit={handleLeaveRequestSubmit} />;
+          return <RequestPage handleSetAiAgentActive={handleSetAiAgentActive} engineerData={engineerData} leaveRequests={leaveRequests.filter(r => r.engineerName === engineerData.name)} onSubmit={handleLeaveRequestSubmit} addNotification={addNotification} />;
         default:
           return <div className="p-8">Page not yet implemented: {view}</div>;
       }
