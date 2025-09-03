@@ -52,6 +52,11 @@ def generate_roster():
         log_to_file(f"Error generating roster: {e}")
         return jsonify({"error": "Failed to generate roster"}), 500
 
+@app.route('/api/roster/status', methods=['GET'])
+def roster_status():
+    log_to_file("Roster status route was hit.")
+    return jsonify({"isGenerated": bool(current_roster)})
+
 @app.route('/api/employees', methods=['GET'])
 def get_employees():
     log_to_file("Get all employees route was hit.")

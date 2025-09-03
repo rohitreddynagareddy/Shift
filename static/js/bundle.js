@@ -736,6 +736,7 @@ const RequestPage = ({ handleSetAiAgentActive, engineerData, leaveRequests, onSu
   const [swapRequests, setSwapRequests] = React.useState([]);
   const [isModalOpen, setIsModalOpen] = React.useState(false);
   const [selectedShift, setSelectedShift] = React.useState(null);
+  const [rosterExists, setRosterExists] = React.useState(true); // Assume it exists initially to avoid flash of message
 
   const fetchSwapRequests = async () => {
     if (!engineerData || !engineerData.name) return;
@@ -802,21 +803,26 @@ const RequestPage = ({ handleSetAiAgentActive, engineerData, leaveRequests, onSu
 
   React.useEffect(() => {
     if (activeTab === 'swap' && engineerData && engineerData.name) {
-      const fetchMyShifts = async () => {
+      const checkRosterAndFetchData = async () => {
         try {
-          const response = await fetch(`/api/employees/${engineerData.name}/shifts`);
-          if (!response.ok) {
-            throw new Error('Failed to fetch shifts');
+          const statusRes = await fetch('/api/roster/status');
+          const statusData = await statusRes.json();
+          setRosterExists(statusData.isGenerated);
+
+          if (statusData.isGenerated) {
+            const shiftsRes = await fetch(`/api/employees/${engineerData.name}/shifts`);
+            if (!shiftsRes.ok) throw new Error('Failed to fetch shifts');
+            const shifts = await shiftsRes.json();
+            setMyShifts(shifts);
+
+            fetchSwapRequests();
           }
-          const shifts = await response.json();
-          setMyShifts(shifts);
         } catch (error) {
           addNotification(error.message, 'error');
           setMyShifts([]);
         }
       };
-      fetchMyShifts();
-      fetchSwapRequests();
+      checkRosterAndFetchData();
     }
   }, [activeTab, engineerData]);
 
@@ -861,7 +867,20 @@ const RequestPage = ({ handleSetAiAgentActive, engineerData, leaveRequests, onSu
         <DashboardCard>
             <h3 className="font-bold text-xl mb-4 text-gray-800">My Upcoming Shifts</h3>
             <div className="space-y-3">
-                {myShifts.length > 0 ? (
+                {!rosterExists ? (
+                    <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
+                        <div className="flex">
+                            <div className="flex-shrink-0">
+                                {Icon('AlertTriangle', { className: 'text-yellow-400' })}
+                            </div>
+                            <div className="ml-3">
+                                <p className="text-sm text-yellow-700">
+                                    A roster has not been generated yet. A manager must generate a roster from the "AI Roster Generator" page before you can see your shifts or request a swap.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                ) : myShifts.length > 0 ? (
                     myShifts.map((shift, index) => (
                         <div key={index} className="bg-gray-50 p-3 rounded-lg flex items-center justify-between">
                             <div>
@@ -872,7 +891,7 @@ const RequestPage = ({ handleSetAiAgentActive, engineerData, leaveRequests, onSu
                         </div>
                     ))
                 ) : (
-                    <p className="text-gray-500">You have no upcoming shifts in the roster.</p>
+                    <p className="text-gray-500">You have no upcoming shifts in the current roster.</p>
                 )}
             </div>
         </DashboardCard>
