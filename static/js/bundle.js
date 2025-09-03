@@ -585,7 +585,7 @@ const ManagerDashboard = ({ managerData }) => {
     </div>
   );
 };
-const RequestPage = ({ handleSetAiAgentActive, engineerName, leaveRequests, onSubmit }) => {
+const RequestPage = ({ handleSetAiAgentActive, engineerData, leaveRequests, onSubmit }) => {
   const [activeTab, setActiveTab] = React.useState('leave');
   const [leaveType, setLeaveType] = React.useState('Vacation');
   const [startDate, setStartDate] = React.useState('');
@@ -666,6 +666,9 @@ const RequestPage = ({ handleSetAiAgentActive, engineerName, leaveRequests, onSu
     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         <DashboardCard>
             <h3 className="font-bold text-xl mb-4 text-gray-800">Submit a New Leave Request</h3>
+            <div className="mb-4 p-3 bg-blue-50 rounded-lg">
+              <p className="text-blue-800 font-semibold">Your available leave balance: {engineerData && engineerData.leaveBalance !== undefined ? `${engineerData.leaveBalance} days` : 'Loading...'}</p>
+            </div>
             <form className="space-y-4" onSubmit={handleLocalLeaveSubmit}>
                 <div>
                     <label htmlFor="leave-type" className="block text-sm font-medium text-gray-700">Leave Type</label>
@@ -1224,11 +1227,31 @@ const App = () => {
 
   // --- LIFECYCLE ---
   React.useEffect(() => {
+    // Set initial mock data
     setManagerData(initialManagerData);
     setEngineerData(initialEngineerData);
     if (initialEngineerData && initialEngineerData.aiAgent) {
       setIsAiAgentActive(initialEngineerData.aiAgent.isOnLeave);
     }
+
+    // Fetch employee data to get leave balances
+    const fetchEmployeeData = async () => {
+        try {
+            const response = await fetch('/api/employees');
+            const employees = await response.json();
+            const currentEngineerName = initialEngineerData.name;
+            const engineerFromServer = employees.find(e => e.name === currentEngineerName);
+            if (engineerFromServer) {
+                setEngineerData(prevData => ({
+                    ...prevData,
+                    leaveBalance: engineerFromServer.leaveBalance,
+                }));
+            }
+        } catch (error) {
+            console.error("Error fetching employee data:", error);
+        }
+    };
+    fetchEmployeeData();
   }, []);
 
   React.useEffect(() => {
@@ -1271,7 +1294,7 @@ const App = () => {
         case 'schedule':
           return <EngineerSchedule engineerData={engineerData} />;
         case 'request':
-          return <RequestPage handleSetAiAgentActive={handleSetAiAgentActive} engineerName={engineerData.name} leaveRequests={leaveRequests.filter(r => r.engineerName === engineerData.name)} onSubmit={handleLeaveRequestSubmit} />;
+          return <RequestPage handleSetAiAgentActive={handleSetAiAgentActive} engineerData={engineerData} leaveRequests={leaveRequests.filter(r => r.engineerName === engineerData.name)} onSubmit={handleLeaveRequestSubmit} />;
         default:
           return <div className="p-8">Page not yet implemented: {view}</div>;
       }
