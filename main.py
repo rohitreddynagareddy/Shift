@@ -14,9 +14,9 @@ current_roster = {}
 
 # In-memory data store for employees
 employees_db = [
-    { "name": 'Rohit', "role": 'Development', "serviceNow": 5, "jira": 8, "csat": 92, "ticketsResolved": 13, "avgResolutionTime": 45, "leaveBalance": 20, "isAiAgentActive": False },
-    { "name": 'Keerthi', "role": 'Operations', "serviceNow": 3, "jira": 12, "csat": 98, "ticketsResolved": 15, "avgResolutionTime": 30, "leaveBalance": 20, "isAiAgentActive": False },
-    { "name": 'Naresh', "role": 'DBA', "serviceNow": 7, "jira": 4, "csat": 95, "ticketsResolved": 11, "avgResolutionTime": 55, "leaveBalance": 20, "isAiAgentActive": False },
+    { "Name": 'Rohit', "Role": 'Development', "serviceNow": 5, "jira": 8, "csat": 92, "ticketsResolved": 13, "avgResolutionTime": 45, "leaveBalance": 20, "isAiAgentActive": False },
+    { "Name": 'Keerthi', "Role": 'Operations', "serviceNow": 3, "jira": 12, "csat": 98, "ticketsResolved": 15, "avgResolutionTime": 30, "leaveBalance": 20, "isAiAgentActive": False },
+    { "Name": 'Naresh', "Role": 'DBA', "serviceNow": 7, "jira": 4, "csat": 95, "ticketsResolved": 11, "avgResolutionTime": 55, "leaveBalance": 20, "isAiAgentActive": False },
 ]
 
 def log_to_file(message):
@@ -72,7 +72,7 @@ def get_employee_shifts(name):
     for day, shifts in current_roster.items():
         for shift_name, people in shifts.items():
             if isinstance(people, list):
-                if any(p.get('name') == name for p in people):
+                if any(p.get('Name') == name for p in people):
                     employee_shifts.append({
                         "day": day,
                         "shift": shift_name
@@ -90,7 +90,7 @@ def update_ai_status(name):
 
     is_active = data['isAiAgentActive']
 
-    employee = next((emp for emp in employees_db if emp['name'] == name), None)
+    employee = next((emp for emp in employees_db if emp['Name'] == name), None)
 
     if not employee:
         return jsonify({"error": "Employee not found"}), 404
@@ -182,13 +182,13 @@ def update_leave_request_status(request_id):
             end_date = datetime.datetime.strptime(request_to_update['endDate'], '%Y-%m-%d')
             duration = (end_date - start_date).days + 1
 
-            employee = next((emp for emp in employees_db if emp['name'] == request_to_update['engineerName']), None)
+            employee = next((emp for emp in employees_db if emp['Name'] == request_to_update['engineerName']), None)
             if employee:
                 if employee['leaveBalance'] >= duration:
                     employee['leaveBalance'] -= duration
-                    log_to_file(f"Updated {employee['name']}'s leave balance to {employee['leaveBalance']}")
+                    log_to_file(f"Updated {employee['Name']}'s leave balance to {employee['leaveBalance']}")
                 else:
-                    log_to_file(f"Insufficient leave balance for {employee['name']}. Rejecting request.")
+                    log_to_file(f"Insufficient leave balance for {employee['Name']}. Rejecting request.")
                     new_status = 'Rejected'
             else:
                 log_to_file(f"Could not find employee {request_to_update['engineerName']} to update balance.")
@@ -274,8 +274,8 @@ def update_swap_request_status(request_id):
             res_shift_info = request_to_update['responderShift']
 
             # Find the engineers in the roster
-            requester_obj = next((emp for emp in employees_db if emp['name'] == requester_name), None)
-            responder_obj = next((emp for emp in employees_db if emp['name'] == responder_name), None)
+            requester_obj = next((emp for emp in employees_db if emp['Name'] == requester_name), None)
+            responder_obj = next((emp for emp in employees_db if emp['Name'] == responder_name), None)
 
             if not requester_obj or not responder_obj:
                 raise ValueError("Could not find one of the employees for the swap.")
@@ -319,4 +319,4 @@ def update_swap_request_status(request_id):
 
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5002)
+    app.run(debug=True, port=5001)

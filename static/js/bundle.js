@@ -2,9 +2,10 @@ const AIRosterGenerator = () => {
   const [isRosterLoading, setIsRosterLoading] = React.useState(false);
   const [rosterError, setRosterError] = React.useState(null);
   const [generatedRoster, setGeneratedRoster] = React.useState(null);
-  const [constraints, setConstraints] = React.useState('');
+  const [structuredConstraints, setStructuredConstraints] = React.useState([]);
   const [members, setMembers] = React.useState([]);
   const [fileName, setFileName] = React.useState('');
+  const [showConstraintBuilder, setShowConstraintBuilder] = React.useState(false);
 
   const Icon = (name, props = {}) => {
       const { size = 20, className = '' } = props;
@@ -73,6 +74,58 @@ const AIRosterGenerator = () => {
     reader.readAsArrayBuffer(file);
   };
 
+  const addConstraint = (constraint) => {
+    setStructuredConstraints(prev => [...prev, { ...constraint, id: Date.now() }]);
+    setShowConstraintBuilder(false);
+  };
+
+  const removeConstraint = (id) => {
+    setStructuredConstraints(prev => prev.filter(c => c.id !== id));
+  };
+
+  const ConstraintBuilder = ({ onAdd, onCancel }) => {
+    const [type, setType] = React.useState('day_off');
+    const [person, setPerson] = React.useState('');
+    const [day, setDay] = React.useState('Monday');
+    const [shift, setShift] = React.useState('Morning');
+
+    const handleSubmit = () => {
+      if (!person) {
+        alert("Please select an engineer.");
+        return;
+      }
+      onAdd({ type, person, day, shift });
+    };
+
+    return (
+        <div className="p-4 border border-dashed border-gray-300 rounded-lg mt-4 space-y-3">
+            <h4 className="font-semibold">New Constraint</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <select value={type} onChange={e => setType(e.target.value)} className="p-2 border rounded">
+                    <option value="day_off">Needs Day Off</option>
+                    <option value="must_work">Must Work Shift</option>
+                </select>
+                <select value={person} onChange={e => setPerson(e.target.value)} className="p-2 border rounded">
+                    <option value="">-- Select Engineer --</option>
+                    {members.map(m => <option key={m.Name} value={m.Name}>{m.Name}</option>)}
+                </select>
+                <select value={day} onChange={e => setDay(e.target.value)} className="p-2 border rounded">
+                    {["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"].map(d => <option key={d} value={d}>{d}</option>)}
+                </select>
+                {type === 'must_work' && (
+                    <select value={shift} onChange={e => setShift(e.target.value)} className="p-2 border rounded">
+                         {["Morning", "Afternoon", "Evening", "Night"].map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                )}
+            </div>
+            <div className="flex justify-end space-x-2">
+                <button onClick={onCancel} className="bg-gray-200 px-3 py-1 rounded">Cancel</button>
+                <button onClick={handleSubmit} className="bg-blue-500 text-white px-3 py-1 rounded">Add</button>
+            </div>
+        </div>
+    );
+  };
+
   const handleGenerateRoster = async () => {
     setIsRosterLoading(true);
     setRosterError(null);
@@ -90,7 +143,7 @@ const AIRosterGenerator = () => {
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ members, constraints }),
+            body: JSON.stringify({ members, constraints: structuredConstraints }),
         });
 
         if (!response.ok) {
@@ -175,8 +228,26 @@ const AIRosterGenerator = () => {
           {excelUploadSection}
           <p className="text-gray-600 mb-6">This tool automatically generates a balanced schedule based on the roles from your uploaded file, historical workload, and shift fairness.</p>
           <div className="mb-6">
-              <label htmlFor="constraints" className="block text-sm font-medium text-gray-700 mb-1">Additional Constraints</label>
-              <textarea id="constraints" rows="3" placeholder="e.g., Keerthi needs Saturday off" className="w-full p-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500" value={constraints} onChange={e => setConstraints(e.target.value)}></textarea>
+            <h3 className="text-lg font-bold text-gray-800 mb-2">Constraints</h3>
+            <div className="space-y-2">
+                {structuredConstraints.map(c => (
+                    <div key={c.id} className="flex items-center justify-between bg-gray-100 p-2 rounded-lg">
+                        <span className="text-sm">
+                            <strong>{c.person}</strong>: {c.type === 'day_off' ? `Needs ${c.day} off` : `Must work ${c.day} ${c.shift}`}
+                        </span>
+                        <button onClick={() => removeConstraint(c.id)} className="text-red-500 hover:text-red-700">
+                            {Icon('XCircle', {size: 18})}
+                        </button>
+                    </div>
+                ))}
+            </div>
+            {showConstraintBuilder ? (
+                <ConstraintBuilder onAdd={addConstraint} onCancel={() => setShowConstraintBuilder(false)} />
+            ) : (
+                <button onClick={() => setShowConstraintBuilder(true)} className="mt-2 w-full text-sm text-blue-600 hover:text-blue-800 p-2 border-2 border-dashed rounded-lg">
+                    + Add Constraint
+                </button>
+            )}
           </div>
           <button onClick={handleGenerateRoster} disabled={isRosterLoading} className="w-full flex justify-center items-center bg-blue-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-700 disabled:bg-blue-400 transition-colors">
               {isRosterLoading ? (
