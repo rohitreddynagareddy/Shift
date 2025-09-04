@@ -1,0 +1,381 @@
+[2025-08-25 16:35:30.170193] Index route was hit.
+[2025-08-25 16:35:31.810403] Generate roster route was hit.
+[2025-08-25 16:35:31.810982] Received data: {
+  "members": [
+    {
+      "name": "Rohit",
+      "role": "Development",
+      "serviceNow": 5,
+      "jira": 8,
+      "csat": 92,
+      "ticketsResolved": 13,
+      "avgResolutionTime": 45
+    },
+    {
+      "name": "Keerthi",
+      "role": "Operations",
+      "serviceNow": 3,
+      "jira": 12,
+      "csat": 98,
+      "ticketsResolved": 15,
+      "avgResolutionTime": 30
+    },
+    {
+      "name": "Naresh",
+      "role": "DBA",
+      "serviceNow": 7,
+      "jira": 4,
+      "csat": 95,
+      "ticketsResolved": 11,
+      "avgResolutionTime": 55
+    }
+  ],
+  "constraints": ""
+}
+[2025-08-25 16:35:31.811949] Generated roster: {
+  "Monday": {
+    "Morning": [],
+    "Afternoon": [],
+    "Evening": [],
+    "Night": [],
+    "Off": "Rohit, Keerthi, Naresh"
+  },
+  "Tuesday": {
+    "Morning": [
+      {
+        "name": "Rohit",
+        "role": "Development"
+      },
+      {
+        "name": "Keerthi",
+        "role": "Operations"
+      }
+    ],
+    "Afternoon": [
+      {
+        "name": "Naresh",
+        "role": "DBA"
+      }
+    ],
+    "Evening": [],
+    "Night": [],
+    "Off": ""
+  },
+  "Wednesday": {
+    "Morning": [],
+    "Afternoon": [],
+    "Evening": [],
+    "Night": [],
+    "Off": "Rohit, Keerthi, Naresh"
+  },
+  "Thursday": {
+    "Morning": [
+      {
+        "name": "Naresh",
+        "role": "DBA"
+      },
+      {
+        "name": "Rohit",
+        "role": "Development"
+      }
+    ],
+    "Afternoon": [
+      {
+        "name": "Keerthi",
+        "role": "Operations"
+      }
+    ],
+    "Evening": [],
+    "Night": [],
+    "Off": ""
+  },
+  "Friday": {
+    "Morning": [],
+    "Afternoon": [],
+    "Evening": [],
+    "Night": [],
+    "Off": "Rohit, Keerthi, Naresh"
+  },
+  "Saturday": {
+    "Morning": [
+      {
+        "name": "Keerthi",
+        "role": "Operations"
+      },
+      {
+        "name": "Naresh",
+        "role": "DBA"
+      }
+    ],
+    "Afternoon": [
+      {
+        "name": "Rohit",
+        "role": "Development"
+      }
+    ],
+    "Evening": [],
+    "Night": [],
+    "Off": ""
+  },
+  "Sunday": {
+    "Morning": [],
+    "Afternoon": [],
+    "Evening": [],
+    "Night": [],
+    "Off": "Rohit, Keerthi, Naresh"
+  }
+}
+[2025-08-25 16:35:58.519813] Index route was hit.
+[2025-08-25 16:36:00.241298] Generate roster route was hit.
+[2025-08-25 16:36:00.241872] Received data: {
+  "members": [
+    {
+      "name": "Rohit",
+      "role": "Development",
+      "serviceNow": 5,
+      "jira": 8,
+      "csat": 92,
+      "ticketsResolved": 13,
+      "avgResolutionTime": 45
+    },
+    {
+      "name": "Keerthi",
+      "role": "Operations",
+      "serviceNow": 3,
+      "jira": 12,
+      "csat": 98,
+      "ticketsResolved": 15,
+      "avgResolutionTime": 30
+    },
+    {
+      "name": "Naresh",
+      "role": "DBA",
+      "serviceNow": 7,
+      "jira": 4,
+      "csat": 95,
+      "ticketsResolved": 11,
+      "avgResolutionTime": 55
+    }
+  ],
+  "constraints": ""
+}
+[2025-08-25 16:36:00.242484] Generated roster: {
+  "Monday": {
+    "Morning": [],
+    "Afternoon": [],
+    "Evening": [],
+    "Night": [],
+    "Off": "Rohit, Keerthi, Naresh"
+  },
+  "Tuesday": {
+    "Morning": [
+      {
+        "name": "Rohit",
+        "role": "Development"
+      },
+      {
+        "name": "Keerthi",
+        "role": "Operations"
+      }
+    ],
+    "Afternoon": [
+      {
+        "name": "Naresh",
+        "role": "DBA"
+      }
+    ],
+    "Evening": [],
+    "Night": [],
+    "Off": ""
+  },
+  "Wednesday": {
+    "Morning": [],
+    "Afternoon": [],
+    "Evening": [],
+    "Night": [],
+    "Off": "Rohit, Keerthi, Naresh"
+  },
+  "Thursday": {
+    "Morning": [
+      {
+        "name": "Naresh",
+        "role": "DBA"
+      },
+      {
+        "name": "Rohit",
+        "role": "Development"
+      }
+    ],
+    "Afternoon": [
+      {
+        "name": "Keerthi",
+        "role": "Operations"
+      }
+    ],
+    "Evening": [],
+    "Night": [],
+    "Off": ""
+  },
+  "Friday": {
+    "Morning": [],
+    "Afternoon": [],
+    "Evening": [],
+    "Night": [],
+    "Off": "Rohit, Keerthi, Naresh"
+  },
+  "Saturday": {
+    "Morning": [
+      {
+        "name": "Keerthi",
+        "role": "Operations"
+      },
+      {
+        "name": "Naresh",
+        "role": "DBA"
+      }
+    ],
+    "Afternoon": [
+      {
+        "name": "Rohit",
+        "role": "Development"
+      }
+    ],
+    "Evening": [],
+    "Night": [],
+    "Off": ""
+  },
+  "Sunday": {
+    "Morning": [],
+    "Afternoon": [],
+    "Evening": [],
+    "Night": [],
+    "Off": "Rohit, Keerthi, Naresh"
+  }
+}
+[2025-08-25 16:36:41.359108] Index route was hit.
+[2025-08-25 16:36:43.053124] Generate roster route was hit.
+[2025-08-25 16:36:43.053454] Received data: {
+  "members": [
+    {
+      "name": "Rohit",
+      "role": "Development",
+      "serviceNow": 5,
+      "jira": 8,
+      "csat": 92,
+      "ticketsResolved": 13,
+      "avgResolutionTime": 45
+    },
+    {
+      "name": "Keerthi",
+      "role": "Operations",
+      "serviceNow": 3,
+      "jira": 12,
+      "csat": 98,
+      "ticketsResolved": 15,
+      "avgResolutionTime": 30
+    },
+    {
+      "name": "Naresh",
+      "role": "DBA",
+      "serviceNow": 7,
+      "jira": 4,
+      "csat": 95,
+      "ticketsResolved": 11,
+      "avgResolutionTime": 55
+    }
+  ],
+  "constraints": ""
+}
+[2025-08-25 16:36:43.053897] Generated roster: {
+  "Monday": {
+    "Morning": [],
+    "Afternoon": [],
+    "Evening": [],
+    "Night": [],
+    "Off": "Rohit, Keerthi, Naresh"
+  },
+  "Tuesday": {
+    "Morning": [
+      {
+        "name": "Rohit",
+        "role": "Development"
+      },
+      {
+        "name": "Keerthi",
+        "role": "Operations"
+      }
+    ],
+    "Afternoon": [
+      {
+        "name": "Naresh",
+        "role": "DBA"
+      }
+    ],
+    "Evening": [],
+    "Night": [],
+    "Off": ""
+  },
+  "Wednesday": {
+    "Morning": [],
+    "Afternoon": [],
+    "Evening": [],
+    "Night": [],
+    "Off": "Rohit, Keerthi, Naresh"
+  },
+  "Thursday": {
+    "Morning": [
+      {
+        "name": "Naresh",
+        "role": "DBA"
+      },
+      {
+        "name": "Rohit",
+        "role": "Development"
+      }
+    ],
+    "Afternoon": [
+      {
+        "name": "Keerthi",
+        "role": "Operations"
+      }
+    ],
+    "Evening": [],
+    "Night": [],
+    "Off": ""
+  },
+  "Friday": {
+    "Morning": [],
+    "Afternoon": [],
+    "Evening": [],
+    "Night": [],
+    "Off": "Rohit, Keerthi, Naresh"
+  },
+  "Saturday": {
+    "Morning": [
+      {
+        "name": "Keerthi",
+        "role": "Operations"
+      },
+      {
+        "name": "Naresh",
+        "role": "DBA"
+      }
+    ],
+    "Afternoon": [
+      {
+        "name": "Rohit",
+        "role": "Development"
+      }
+    ],
+    "Evening": [],
+    "Night": [],
+    "Off": ""
+  },
+  "Sunday": {
+    "Morning": [],
+    "Afternoon": [],
+    "Evening": [],
+    "Night": [],
+    "Off": "Rohit, Keerthi, Naresh"
+  }
+}

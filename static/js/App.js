@@ -117,6 +117,8 @@ const App = () => {
           return <EngineerSchedule engineerData={engineerData} />;
         case 'request':
           return <RequestPage handleSetAiAgentActive={handleSetAiAgentActive} />;
+        case 'performance':
+          return <MyPerformancePage engineerData={engineerData} />;
         default:
           return <div className="p-8">Page not yet implemented: {view}</div>;
       }
