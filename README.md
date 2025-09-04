@@ -26,7 +26,7 @@ Before you begin, ensure you have the following installed:
     - On macOS and Linux:
       ```bash
       python3 -m venv venv
-      source venv/Scripts/activate
+      source venv/bin/activate
       ```
     - On Windows:
       ```bash
