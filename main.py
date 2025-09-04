@@ -266,6 +266,7 @@ def update_swap_request_status(request_id):
 
     # If approved, perform the swap in the current_roster
     if new_status == 'Approved' and current_roster:
+        log_to_file(f"--- SWAP DEBUG: Approving request {request_id} ---")
         try:
             requester_name = request_to_update['requesterName']
             responder_name = request_to_update['responderName']
@@ -280,20 +281,30 @@ def update_swap_request_status(request_id):
                 raise ValueError("Could not find one of the employees for the swap.")
 
             # Remove requester from their original shift
-            current_roster[req_shift_info['day']][req_shift_info['shift']] = [
-                p for p in current_roster[req_shift_info['day']][req_shift_info['shift']] if p['name'] != requester_name
-            ]
+            requester_list = current_roster[req_shift_info['day']][req_shift_info['shift']]
+            for person in requester_list:
+                if person['name'] == requester_name:
+                    requester_list.remove(person)
+                    break
+
             # Remove responder from their original shift
-            current_roster[res_shift_info['day']][res_shift_info['shift']] = [
-                p for p in current_roster[res_shift_info['day']][res_shift_info['shift']] if p['name'] != responder_name
-            ]
+            responder_list = current_roster[res_shift_info['day']][res_shift_info['shift']]
+            for person in responder_list:
+                if person['name'] == responder_name:
+                    responder_list.remove(person)
+                    break
 
             # Add requester to responder's original shift
             current_roster[res_shift_info['day']][res_shift_info['shift']].append(requester_obj)
+            log_to_file(f"DEBUG: Roster before swap for {req_shift_info['day']} {req_shift_info['shift']}: {current_roster[req_shift_info['day']][req_shift_info['shift']]}")
+            log_to_file(f"DEBUG: Roster before swap for {res_shift_info['day']} {res_shift_info['shift']}: {current_roster[res_shift_info['day']][res_shift_info['shift']]}")
+
             # Add responder to requester's original shift
             current_roster[req_shift_info['day']][req_shift_info['shift']].append(responder_obj)
 
             log_to_file(f"Successfully swapped shifts in roster for request {request_id}")
+            log_to_file(f"DEBUG: Roster after swap for {req_shift_info['day']} {req_shift_info['shift']}: {current_roster[req_shift_info['day']][req_shift_info['shift']]}")
+            log_to_file(f"DEBUG: Roster after swap for {res_shift_info['day']} {res_shift_info['shift']}: {current_roster[res_shift_info['day']][res_shift_info['shift']]}")
             log_to_file(f"Updated roster: {json.dumps(current_roster, indent=2)}")
 
         except (KeyError, ValueError) as e:
