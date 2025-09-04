@@ -1,25 +1,13 @@
-import dspy
 import re
 
-class RosterSignature(dspy.Signature):
-    """Generate a roster for a team of engineers."""
-    members = dspy.InputField(desc="A list of team members with their roles.")
-    constraints = dspy.InputField(desc="Any additional constraints for the roster.")
-    roster = dspy.OutputField(desc="A JSON object representing the generated roster.")
-
-class RosterGenerator(dspy.Module):
+class RosterGenerator():
     def __init__(self):
-        super().__init__()
-        self.generate_roster = dspy.Predict(RosterSignature)
+        pass
 
     def forward(self, members, constraints):
-        # In a real DSPy application, you would call the language model like this:
-        # result = self.generate_roster(members=members, constraints=constraints)
-        # return result.roster
-
-        # For this example, we'll use the ported Python logic as a mock.
+        # This is the mock generation logic, now used directly.
         roster = self._generate_automated_roster_mock(members, constraints)
-        return dspy.Prediction(roster=roster)
+        return roster
 
     def _generate_automated_roster_mock(self, members, user_constraints):
         days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
@@ -28,10 +16,11 @@ class RosterGenerator(dspy.Module):
         workload = {m['name']: {'totalShifts': 0, 'weekendShifts': 0, 'lastDayWorked': -1, 'shiftCounts': {s: 0 for s in shifts}} for m in members}
 
         parsed_constraints = []
-        for c in user_constraints.lower().split('\n'):
-            match = re.search(r'(\w+)\s+needs\s+(\w+)\s+off', c)
-            if match:
-                parsed_constraints.append({'name': match.group(1), 'day': match.group(2)})
+        if user_constraints:
+            for c in user_constraints.lower().split('\n'):
+                match = re.search(r'(\w+)\s+needs\s+(\w+)\s+off', c)
+                if match:
+                    parsed_constraints.append({'name': match.group(1), 'day': match.group(2)})
 
         for day_index, day in enumerate(days):
             roster[day] = {shift: [] for shift in shifts}
@@ -80,9 +69,6 @@ class RosterGenerator(dspy.Module):
 
 # Example usage (for testing)
 if __name__ == '__main__':
-    # Mock DSPy setup
-    # dspy.configure(lm=dspy.OpenAI(model='gpt-3.5-turbo')) # This would be a real LM
-
     # Mock members and constraints
     mock_members = [
         {'name': 'Rohit', 'role': 'Development'},
@@ -98,4 +84,4 @@ if __name__ == '__main__':
     prediction = roster_gen.forward(members=mock_members, constraints=mock_constraints)
 
     import json
-    print(json.dumps(prediction.roster, indent=2))
+    print(json.dumps(prediction, indent=2))
