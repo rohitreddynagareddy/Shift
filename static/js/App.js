@@ -21,9 +21,9 @@ const App = () => {
         upcomingLeave: [ { name: 'Rohit', days: 3 } ]
     },
     teamTickets: [
-        { name: 'Rohit', role: 'Development', serviceNow: 5, jira: 8, csat: 92, ticketsResolved: 13, avgResolutionTime: 45 },
-        { name: 'Keerthi', role: 'Operations', serviceNow: 3, jira: 12, csat: 98, ticketsResolved: 15, avgResolutionTime: 30 },
-        { name: 'Naresh', role: 'DBA', serviceNow: 7, jira: 4, csat: 95, ticketsResolved: 11, avgResolutionTime: 55 },
+        { Name: 'Rohit', Role: 'Development', serviceNow: 5, jira: 8, csat: 92, ticketsResolved": 13, avgResolutionTime: 45 },
+        { Name: 'Keerthi', Role: 'Operations', serviceNow: 3, jira: 12, csat: 98, ticketsResolved: 15, avgResolutionTime: 30 },
+        { Name: 'Naresh', Role: 'DBA', serviceNow: 7, jira: 4, csat: 95, ticketsResolved: 11, avgResolutionTime: 55 },
     ],
     analytics: {
         last30Days: {
@@ -44,7 +44,7 @@ const App = () => {
     }
   };
   const initialEngineerData = {
-      name: 'Rohit',
+      Name: 'Rohit',
       personalPulse: { currentShift: 'Morning', workload: 65, tasksCompleted: 5, tasksPending: 3 },
       weekAhead: [
           { day: 'Mon', shift: 'Morning' }, { day: 'Tue', shift: 'Morning' }, { day: 'Wed', shift: 'Evening' },
@@ -68,16 +68,45 @@ const App = () => {
   const [managerData, setManagerData] = React.useState(null);
   const [engineerData, setEngineerData] = React.useState(null);
   const [isAiAgentActive, setIsAiAgentActive] = React.useState(false);
+  const [leaveRequests, setLeaveRequests] = React.useState([]);
+  const [notifications, setNotifications] = React.useState([]);
 
+  // --- DATA FETCHING & LIFECYCLE ---
   React.useEffect(() => {
-    setManagerData(initialManagerData);
-    setEngineerData(initialEngineerData);
-    if (initialEngineerData && initialEngineerData.aiAgent) {
-      setIsAiAgentActive(initialEngineerData.aiAgent.isOnLeave);
-    }
+    const fetchInitialData = async () => {
+      try {
+        // In a real app, this would fetch from an API
+        // For now, we use mock data and supplement it
+        const leaveRes = await fetch('/api/leave_requests');
+        const leaveData = await leaveRes.json();
+        setLeaveRequests(leaveData);
+
+        setManagerData(initialManagerData);
+        setEngineerData(initialEngineerData);
+        if (initialEngineerData && initialEngineerData.aiAgent) {
+          setIsAiAgentActive(initialEngineerData.aiAgent.isOnLeave);
+        }
+
+      } catch (error) {
+        console.error("Error fetching initial data:", error);
+        // Fallback to initial data if API fails
+        setManagerData(initialManagerData);
+        setEngineerData(initialEngineerData);
+      }
+    };
+    fetchInitialData();
   }, []);
 
   // --- EVENT HANDLERS ---
+  const addNotification = (message, type = 'success') => {
+    const id = Date.now();
+    setNotifications(prev => [...prev, { id, message, type }]);
+  };
+
+  const removeNotification = (id) => {
+    setNotifications(prev => prev.filter(n => n.id !== id));
+  };
+
   const handleSwitchUserType = () => {
     setUserType(prevType => {
       const newType = prevType === 'manager' ? 'engineer' : 'manager';
@@ -94,6 +123,56 @@ const App = () => {
     setIsAiAgentActive(isActive);
   };
 
+  const handleLeaveRequestSubmit = async (requestData) => {
+    try {
+      const response = await fetch('/api/leave_requests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({...requestData, engineerName: engineerData.Name}),
+      });
+      if (!response.ok) {
+        throw new Error('Failed to submit leave request');
+      }
+      const newRequest = await response.json();
+      setLeaveRequests(prevRequests => [...prevRequests, newRequest]);
+      addNotification('Leave request submitted successfully!', 'success');
+    } catch (error) {
+      console.error("Error submitting leave request:", error);
+      addNotification(error.message, 'error');
+    }
+  };
+
+  const handleLeaveRequestUpdate = async (requestId, status) => {
+    try {
+      const response = await fetch(`/api/leave_requests/${requestId}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      });
+      if (!response.ok) {
+        throw new Error('Failed to update leave request');
+      }
+      const updatedRequest = await response.json();
+      setLeaveRequests(prevRequests =>
+        prevRequests.map(req => req.id === requestId ? updatedRequest : req)
+      );
+
+      if (updatedRequest.status === 'Approved') {
+        addNotification(`Request ${updatedRequest.id} approved.`, 'success');
+      } else {
+        addNotification(`Request ${updatedRequest.id} rejected.`, 'warning');
+      }
+
+      if (updatedRequest.conflict_warning) {
+        addNotification(updatedRequest.conflict_warning, 'warning');
+      }
+    } catch (error) {
+      console.error("Error updating leave request:", error);
+      addNotification(error.message, 'error');
+    }
+  };
+
+
   // --- RENDER LOGIC ---
   const renderView = () => {
     if (userType === 'manager') {
@@ -106,6 +185,8 @@ const App = () => {
           return <TeamAnalytics managerData={managerData} />;
         case 'schedule':
           return <ScheduleManager managerData={managerData} />;
+        case 'approvals':
+          return <LeaveApprovalPage leaveRequests={leaveRequests} onUpdateRequest={handleLeaveRequestUpdate} />;
         default:
           return <div className="p-8">Page not yet implemented: {view}</div>;
       }
@@ -116,7 +197,7 @@ const App = () => {
         case 'schedule':
           return <EngineerSchedule engineerData={engineerData} />;
         case 'request':
-          return <RequestPage handleSetAiAgentActive={handleSetAiAgentActive} />;
+          return <RequestPage engineerData={engineerData} leaveRequests={leaveRequests.filter(r => r.engineerName === engineerData.Name)} onSubmit={handleLeaveRequestSubmit} />;
         case 'performance':
           return <MyPerformancePage engineerData={engineerData} />;
         default:
@@ -127,6 +208,7 @@ const App = () => {
 
   return (
     <div className="flex bg-gray-100 min-h-screen">
+      <NotificationContainer notifications={notifications} onRemove={removeNotification} />
       <Sidebar
         userType={userType}
         uploadedFileName={uploadedFileName}
@@ -136,7 +218,7 @@ const App = () => {
       <div className="flex-1 flex flex-col">
         <Header
           userType={userType}
-          engineerName={engineerData ? engineerData.name : ''}
+          engineerName={engineerData ? engineerData.Name : ''}
           onSwitchUserType={handleSwitchUserType}
         />
         <main className="flex-1 overflow-y-auto">

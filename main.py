@@ -8,6 +8,9 @@ app = Flask(__name__)
 # It's better to create a single instance of the generator
 roster_generator_instance = RosterGenerator()
 
+# In-memory data store for the generated roster
+current_roster = {}
+
 # In-memory data store for employees
 employees_db = [
     { "Name": 'Rohit', "Role": 'Development', "serviceNow": 5, "jira": 8, "csat": 92, "ticketsResolved": 13, "avgResolutionTime": 45, "leaveBalance": 20, "isAiAgentActive": False },
@@ -39,12 +42,121 @@ def generate_roster():
 
     try:
         # Use the roster generator instance
+        global current_roster
         prediction = roster_generator_instance.forward(members=members, constraints=constraints)
-        log_to_file(f"Generated roster: {json.dumps(prediction.roster, indent=2)}")
-        return jsonify(prediction.roster)
+        current_roster = prediction.roster
+        log_to_file(f"Generated roster: {json.dumps(current_roster, indent=2)}")
+        return jsonify(current_roster)
     except Exception as e:
         log_to_file(f"Error generating roster: {e}")
         return jsonify({"error": "Failed to generate roster"}), 500
+
+# In-memory data store for leave requests
+leave_requests_db = []
+request_id_counter = 0
+
+@app.route('/api/leave_requests', methods=['GET'])
+def get_leave_requests():
+    log_to_file("Get all leave requests route was hit.")
+    return jsonify(leave_requests_db)
+
+@app.route('/api/leave_requests', methods=['POST'])
+def create_leave_request():
+    global request_id_counter
+    log_to_file("Create leave request route was hit.")
+    data = request.get_json()
+    if not data or 'engineerName' not in data or 'startDate' not in data or 'endDate' not in data:
+        return jsonify({"error": "Missing required fields for leave request"}), 400
+
+    request_id_counter += 1
+    new_request = {
+        "id": request_id_counter,
+        "engineerName": data['engineerName'],
+        "startDate": data['startDate'],
+        "endDate": data['endDate'],
+        "reason": data.get('reason', ''),
+        "status": "Pending"
+    }
+    leave_requests_db.append(new_request)
+    log_to_file(f"Created new leave request: {json.dumps(new_request, indent=2)}")
+    return jsonify(new_request), 201
+
+@app.route('/api/leave_requests/<int:request_id>/status', methods=['PUT'])
+def update_leave_request_status(request_id):
+    log_to_file(f"Update status route was hit for request ID: {request_id}")
+    data = request.get_json()
+    if not data or 'status' not in data:
+        return jsonify({"error": "Missing 'status' in request body"}), 400
+
+    new_status = data['status']
+    if new_status not in ['Approved', 'Rejected']:
+        return jsonify({"error": "Invalid status value"}), 400
+
+    request_to_update = next((req for req in leave_requests_db if req['id'] == request_id), None)
+
+    if not request_to_update:
+        return jsonify({"error": "Leave request not found"}), 404
+
+    conflict_warning = None
+    # If approving, do conflict check and update leave balance
+    if new_status == 'Approved':
+        # Conflict Detection
+        if current_roster:
+            try:
+                leave_start_date = datetime.datetime.strptime(request_to_update['startDate'], '%Y-%m-%d').date()
+                leave_end_date = datetime.datetime.strptime(request_to_update['endDate'], '%Y-%m-%d').date()
+                engineer_name = request_to_update['engineerName']
+
+                conflicting_days = []
+                delta = leave_end_date - leave_start_date
+
+                for i in range(delta.days + 1):
+                    day = leave_start_date + timedelta(days=i)
+                    day_name = day.strftime('%A') # e.g., "Monday"
+
+                    if day_name in current_roster:
+                        for shift, people in current_roster[day_name].items():
+                            if isinstance(people, list):
+                                if any(p.get('name') == engineer_name for p in people):
+                                    conflicting_days.append(day_name)
+                                    break
+
+                if conflicting_days:
+                    conflict_warning = f"Warning: This leave conflicts with the generated roster on {', '.join(conflicting_days)}."
+                    log_to_file(f"Conflict detected for {engineer_name}: {conflict_warning}")
+
+            except (ValueError, TypeError) as e:
+                log_to_file(f"Error during conflict detection: {e}")
+
+        # Update leave balance
+        try:
+            start_date = datetime.datetime.strptime(request_to_update['startDate'], '%Y-%m-%d')
+            end_date = datetime.datetime.strptime(request_to_update['endDate'], '%Y-%m-%d')
+            duration = (end_date - start_date).days + 1
+
+            employee = next((emp for emp in employees_db if emp['Name'] == request_to_update['engineerName']), None)
+            if employee:
+                if employee['leaveBalance'] >= duration:
+                    employee['leaveBalance'] -= duration
+                    log_to_file(f"Updated {employee['Name']}'s leave balance to {employee['leaveBalance']}")
+                else:
+                    log_to_file(f"Insufficient leave balance for {employee['Name']}. Rejecting request.")
+                    new_status = 'Rejected'
+            else:
+                log_to_file(f"Could not find employee {request_to_update['engineerName']} to update balance.")
+
+        except (ValueError, TypeError) as e:
+            log_to_file(f"Error processing date for leave balance update: {e}")
+            pass
+
+    request_to_update['status'] = new_status
+    log_to_file(f"Updated leave request {request_id} to status: {new_status}")
+
+    response_data = request_to_update.copy()
+    if conflict_warning:
+        response_data['conflict_warning'] = conflict_warning
+
+    return jsonify(response_data)
 
 @app.route('/api/analytics/team_averages', methods=['GET'])
 def get_team_averages():

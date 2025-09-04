@@ -452,6 +452,58 @@ const Header = ({ userType, engineerName, onSwitchUserType }) => {
     </header>
   );
 };
+const LeaveApprovalPage = ({ leaveRequests, onUpdateRequest }) => {
+  const Icon = (name, props = {}) => {
+      const { size = 20, className = '' } = props;
+      const camelCaseName = name.charAt(0).toLowerCase() + name.slice(1).replace(/-(\w)/g, g => g[1].toUpperCase());
+      const iconNode = lucide.icons[camelCaseName];
+      if (!iconNode) {
+          console.warn(`Lucide icon not found: ${name} (as ${camelCaseName})`);
+          return <span className={className}><svg width={size} height={size}></svg></span>;
+      }
+      return <span className={className} dangerouslySetInnerHTML={{ __html: iconNode.toSvg({ width: size, height: size }) }} />;
+  };
+
+  const getStatusColor = (status) => {
+    if (status === 'Approved') return 'bg-green-100 text-green-800';
+    if (status === 'Rejected') return 'bg-red-100 text-red-800';
+    return 'bg-yellow-100 text-yellow-800';
+  }
+
+  return (
+    <div className="p-8 bg-gray-100">
+      <DashboardCard>
+        <h2 className="text-2xl font-bold text-gray-800 mb-6">Leave Requests for Approval</h2>
+        <div className="space-y-4">
+          {leaveRequests && leaveRequests.length > 0 ? (
+            leaveRequests.map(req => (
+              <div key={req.id} className="bg-gray-50 p-4 rounded-lg flex items-center justify-between">
+                <div>
+                  <p className="font-bold">{req.engineerName}</p>
+                  <p className="text-sm text-gray-600">{req.startDate} to {req.endDate}</p>
+                  {req.reason && <p className="text-sm mt-1">Reason: <em>"{req.reason}"</em></p>}
+                </div>
+                <div className="flex items-center space-x-2">
+                  <span className={`px-3 py-1 text-sm font-semibold rounded-full ${getStatusColor(req.status)}`}>
+                    {req.status}
+                  </span>
+                  {req.status === 'Pending' && (
+                    <React.Fragment>
+                      <button onClick={() => onUpdateRequest(req.id, 'Approved')} className="bg-green-500 text-white px-3 py-1 rounded-md hover:bg-green-600">Approve</button>
+                      <button onClick={() => onUpdateRequest(req.id, 'Rejected')} className="bg-red-500 text-white px-3 py-1 rounded-md hover:bg-red-600">Reject</button>
+                    </React.Fragment>
+                  )}
+                </div>
+              </div>
+            ))
+          ) : (
+            <p className="text-gray-500">No pending leave requests.</p>
+          )}
+        </div>
+      </DashboardCard>
+    </div>
+  );
+};
 const ManagerDashboard = ({ managerData }) => {
   // This helper function renders icons from the global 'lucide' object
   const Icon = (name, props = {}) => {
@@ -702,8 +754,55 @@ const MyPerformancePage = ({ engineerData }) => {
     </div>
   );
 };
-const RequestPage = ({ handleSetAiAgentActive }) => {
-  const [activeTab, setActiveTab] = React.useState('swap');
+const Notification = ({ notification, onRemove }) => {
+  const { id, message, type } = notification;
+  const [exiting, setExiting] = React.useState(false);
+
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      setExiting(true);
+      setTimeout(() => onRemove(id), 500); // Allow time for exit animation
+    }, 5000); // 5 seconds visible
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  const handleRemove = () => {
+    setExiting(true);
+    setTimeout(() => onRemove(id), 500);
+  };
+
+  const baseClasses = "flex items-center justify-between p-4 rounded-lg shadow-lg text-white transition-all duration-500 transform";
+  const typeClasses = {
+    success: 'bg-green-500',
+    warning: 'bg-yellow-500',
+    error: 'bg-red-500',
+  };
+  const animationClasses = exiting ? 'opacity-0 translate-x-full' : 'opacity-100 translate-x-0';
+
+  return (
+    <div className={`${baseClasses} ${typeClasses[type] || 'bg-gray-500'} ${animationClasses}`}>
+      <span>{message}</span>
+      <button onClick={handleRemove} className="ml-4 font-bold">X</button>
+    </div>
+  );
+};
+
+const NotificationContainer = ({ notifications, onRemove }) => {
+  return (
+    <div className="fixed top-5 right-5 z-50 space-y-2 w-80">
+      {notifications.map(n => (
+        <Notification key={n.id} notification={n} onRemove={onRemove} />
+      ))}
+    </div>
+  );
+};
+const RequestPage = ({ engineerData, leaveRequests, onSubmit }) => {
+  const [activeTab, setActiveTab] = React.useState('leave');
+  const [leaveType, setLeaveType] = React.useState('Vacation');
+  const [startDate, setStartDate] = React.useState('');
+  const [endDate, setEndDate] = React.useState('');
+  const [reason, setReason] = React.useState('');
 
   const Icon = (name, props = {}) => {
       const { size = 20, className = '' } = props;
@@ -716,14 +815,30 @@ const RequestPage = ({ handleSetAiAgentActive }) => {
       return <span className={className} dangerouslySetInnerHTML={{ __html: iconNode.toSvg({ width: size, height: size }) }} />;
   };
 
-  const handleLeaveSubmit = (e) => {
+  const handleLocalLeaveSubmit = (e) => {
     e.preventDefault();
-    // In a real app, we would also submit the form data to an API.
-    // For now, we just log it and activate the AI agent.
-    console.log("Leave request submitted. Activating AI Assistant.");
-    handleSetAiAgentActive(true);
-    alert('Leave request submitted and AI Assistant has been activated!');
+    if (!startDate || !endDate) {
+      alert('Please select a start and end date.');
+      return;
+    }
+    onSubmit({
+      leaveType,
+      startDate,
+      endDate,
+      reason,
+    });
+    // Clear form
+    setLeaveType('Vacation');
+    setStartDate('');
+    setEndDate('');
+    setReason('');
   };
+
+  const getStatusColor = (status) => {
+    if (status === 'Approved') return 'bg-green-100 text-green-800';
+    if (status === 'Rejected') return 'bg-red-100 text-red-800';
+    return 'bg-yellow-100 text-yellow-800';
+  }
 
   const renderSwapRequestTab = () => (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -763,10 +878,13 @@ const RequestPage = ({ handleSetAiAgentActive }) => {
     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         <DashboardCard>
             <h3 className="font-bold text-xl mb-4 text-gray-800">Submit a New Leave Request</h3>
-            <form className="space-y-4" onSubmit={handleLeaveSubmit}>
+            <div className="mb-4 p-3 bg-blue-50 rounded-lg">
+              <p className="text-blue-800 font-semibold">Your available leave balance: {engineerData && engineerData.leaveBalance !== undefined ? `${engineerData.leaveBalance} days` : 'Loading...'}</p>
+            </div>
+            <form className="space-y-4" onSubmit={handleLocalLeaveSubmit}>
                 <div>
                     <label htmlFor="leave-type" className="block text-sm font-medium text-gray-700">Leave Type</label>
-                    <select id="leave-type" name="leave-type" className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md">
+                    <select id="leave-type" value={leaveType} onChange={e => setLeaveType(e.target.value)} className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md">
                         <option>Vacation</option>
                         <option>Sick Leave</option>
                         <option>Personal</option>
@@ -775,16 +893,16 @@ const RequestPage = ({ handleSetAiAgentActive }) => {
                 <div className="flex space-x-4">
                     <div className="flex-1">
                         <label htmlFor="start-date" className="block text-sm font-medium text-gray-700">Start Date</label>
-                        <input type="date" id="start-date" name="start-date" className="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2" />
+                        <input type="date" id="start-date" value={startDate} onChange={e => setStartDate(e.target.value)} className="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2" />
                     </div>
                     <div className="flex-1">
                         <label htmlFor="end-date" className="block text-sm font-medium text-gray-700">End Date</label>
-                        <input type="date" id="end-date" name="end-date" className="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2" />
+                        <input type="date" id="end-date" value={endDate} onChange={e => setEndDate(e.target.value)} className="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2" />
                     </div>
                 </div>
                  <div>
                     <label htmlFor="reason" className="block text-sm font-medium text-gray-700">Reason (Optional)</label>
-                    <textarea id="reason" name="reason" rows="3" className="mt-1 block w-full shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm border border-gray-300 rounded-md p-2"></textarea>
+                    <textarea id="reason" value={reason} onChange={e => setReason(e.target.value)} rows="3" className="mt-1 block w-full shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm border border-gray-300 rounded-md p-2"></textarea>
                 </div>
                 <div>
                     <button type="submit" className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
@@ -796,7 +914,17 @@ const RequestPage = ({ handleSetAiAgentActive }) => {
          <DashboardCard>
             <h3 className="font-bold text-xl mb-4 text-gray-800">My Request History</h3>
             <div className="space-y-3">
-                <p className="text-gray-500">You have no past leave requests.</p>
+                {leaveRequests && leaveRequests.length > 0 ? (
+                    leaveRequests.map(req => (
+                        <div key={req.id} className={`p-3 rounded-lg ${getStatusColor(req.status)}`}>
+                            <p className="font-bold">{req.startDate} to {req.endDate}</p>
+                            <p className="text-sm">Status: {req.status}</p>
+                            {req.reason && <p className="text-sm mt-1"><em>"{req.reason}"</em></p>}
+                        </div>
+                    ))
+                ) : (
+                    <p className="text-gray-500">You have no past leave requests.</p>
+                )}
             </div>
         </DashboardCard>
     </div>
@@ -1150,9 +1278,9 @@ const App = () => {
         upcomingLeave: [ { name: 'Rohit', days: 3 } ]
     },
     teamTickets: [
-        { name: 'Rohit', role: 'Development', serviceNow: 5, jira: 8, csat: 92, ticketsResolved: 13, avgResolutionTime: 45 },
-        { name: 'Keerthi', role: 'Operations', serviceNow: 3, jira: 12, csat: 98, ticketsResolved: 15, avgResolutionTime: 30 },
-        { name: 'Naresh', role: 'DBA', serviceNow: 7, jira: 4, csat: 95, ticketsResolved: 11, avgResolutionTime: 55 },
+        { Name: 'Rohit', Role: 'Development', serviceNow: 5, jira: 8, csat: 92, ticketsResolved": 13, avgResolutionTime: 45 },
+        { Name: 'Keerthi', Role: 'Operations', serviceNow: 3, jira: 12, csat: 98, ticketsResolved: 15, avgResolutionTime: 30 },
+        { Name: 'Naresh', Role: 'DBA', serviceNow: 7, jira: 4, csat: 95, ticketsResolved: 11, avgResolutionTime: 55 },
     ],
     analytics: {
         last30Days: {
@@ -1173,7 +1301,7 @@ const App = () => {
     }
   };
   const initialEngineerData = {
-      name: 'Rohit',
+      Name: 'Rohit',
       personalPulse: { currentShift: 'Morning', workload: 65, tasksCompleted: 5, tasksPending: 3 },
       weekAhead: [
           { day: 'Mon', shift: 'Morning' }, { day: 'Tue', shift: 'Morning' }, { day: 'Wed', shift: 'Evening' },
@@ -1197,16 +1325,45 @@ const App = () => {
   const [managerData, setManagerData] = React.useState(null);
   const [engineerData, setEngineerData] = React.useState(null);
   const [isAiAgentActive, setIsAiAgentActive] = React.useState(false);
+  const [leaveRequests, setLeaveRequests] = React.useState([]);
+  const [notifications, setNotifications] = React.useState([]);
 
+  // --- DATA FETCHING & LIFECYCLE ---
   React.useEffect(() => {
-    setManagerData(initialManagerData);
-    setEngineerData(initialEngineerData);
-    if (initialEngineerData && initialEngineerData.aiAgent) {
-      setIsAiAgentActive(initialEngineerData.aiAgent.isOnLeave);
-    }
+    const fetchInitialData = async () => {
+      try {
+        // In a real app, this would fetch from an API
+        // For now, we use mock data and supplement it
+        const leaveRes = await fetch('/api/leave_requests');
+        const leaveData = await leaveRes.json();
+        setLeaveRequests(leaveData);
+
+        setManagerData(initialManagerData);
+        setEngineerData(initialEngineerData);
+        if (initialEngineerData && initialEngineerData.aiAgent) {
+          setIsAiAgentActive(initialEngineerData.aiAgent.isOnLeave);
+        }
+
+      } catch (error) {
+        console.error("Error fetching initial data:", error);
+        // Fallback to initial data if API fails
+        setManagerData(initialManagerData);
+        setEngineerData(initialEngineerData);
+      }
+    };
+    fetchInitialData();
   }, []);
 
   // --- EVENT HANDLERS ---
+  const addNotification = (message, type = 'success') => {
+    const id = Date.now();
+    setNotifications(prev => [...prev, { id, message, type }]);
+  };
+
+  const removeNotification = (id) => {
+    setNotifications(prev => prev.filter(n => n.id !== id));
+  };
+
   const handleSwitchUserType = () => {
     setUserType(prevType => {
       const newType = prevType === 'manager' ? 'engineer' : 'manager';
@@ -1223,6 +1380,56 @@ const App = () => {
     setIsAiAgentActive(isActive);
   };
 
+  const handleLeaveRequestSubmit = async (requestData) => {
+    try {
+      const response = await fetch('/api/leave_requests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({...requestData, engineerName: engineerData.Name}),
+      });
+      if (!response.ok) {
+        throw new Error('Failed to submit leave request');
+      }
+      const newRequest = await response.json();
+      setLeaveRequests(prevRequests => [...prevRequests, newRequest]);
+      addNotification('Leave request submitted successfully!', 'success');
+    } catch (error) {
+      console.error("Error submitting leave request:", error);
+      addNotification(error.message, 'error');
+    }
+  };
+
+  const handleLeaveRequestUpdate = async (requestId, status) => {
+    try {
+      const response = await fetch(`/api/leave_requests/${requestId}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      });
+      if (!response.ok) {
+        throw new Error('Failed to update leave request');
+      }
+      const updatedRequest = await response.json();
+      setLeaveRequests(prevRequests =>
+        prevRequests.map(req => req.id === requestId ? updatedRequest : req)
+      );
+
+      if (updatedRequest.status === 'Approved') {
+        addNotification(`Request ${updatedRequest.id} approved.`, 'success');
+      } else {
+        addNotification(`Request ${updatedRequest.id} rejected.`, 'warning');
+      }
+
+      if (updatedRequest.conflict_warning) {
+        addNotification(updatedRequest.conflict_warning, 'warning');
+      }
+    } catch (error) {
+      console.error("Error updating leave request:", error);
+      addNotification(error.message, 'error');
+    }
+  };
+
+
   // --- RENDER LOGIC ---
   const renderView = () => {
     if (userType === 'manager') {
@@ -1235,6 +1442,8 @@ const App = () => {
           return <TeamAnalytics managerData={managerData} />;
         case 'schedule':
           return <ScheduleManager managerData={managerData} />;
+        case 'approvals':
+          return <LeaveApprovalPage leaveRequests={leaveRequests} onUpdateRequest={handleLeaveRequestUpdate} />;
         default:
           return <div className="p-8">Page not yet implemented: {view}</div>;
       }
@@ -1245,7 +1454,7 @@ const App = () => {
         case 'schedule':
           return <EngineerSchedule engineerData={engineerData} />;
         case 'request':
-          return <RequestPage handleSetAiAgentActive={handleSetAiAgentActive} />;
+          return <RequestPage engineerData={engineerData} leaveRequests={leaveRequests.filter(r => r.engineerName === engineerData.Name)} onSubmit={handleLeaveRequestSubmit} />;
         case 'performance':
           return <MyPerformancePage engineerData={engineerData} />;
         default:
@@ -1256,6 +1465,7 @@ const App = () => {
 
   return (
     <div className="flex bg-gray-100 min-h-screen">
+      <NotificationContainer notifications={notifications} onRemove={removeNotification} />
       <Sidebar
         userType={userType}
         uploadedFileName={uploadedFileName}
@@ -1265,7 +1475,7 @@ const App = () => {
       <div className="flex-1 flex flex-col">
         <Header
           userType={userType}
-          engineerName={engineerData ? engineerData.name : ''}
+          engineerName={engineerData ? engineerData.Name : ''}
           onSwitchUserType={handleSwitchUserType}
         />
         <main className="flex-1 overflow-y-auto">
