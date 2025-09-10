@@ -1,99 +1,101 @@
-import dspy
+import datetime
 import re
 
-class RosterSignature(dspy.Signature):
-    """Generate a roster for a team of engineers."""
-    members = dspy.InputField(desc="A list of team members with their roles.")
-    constraints = dspy.InputField(desc="Any additional constraints for the roster.")
-    roster = dspy.OutputField(desc="A JSON object representing the generated roster.")
-
-class RosterGenerator(dspy.Module):
-    def __init__(self):
-        super().__init__()
-        self.generate_roster = dspy.Predict(RosterSignature)
-
+class RosterGenerator:
+    """
+    A standalone, date-based roster generator.
+    This version removes the dependency on DSPy and uses standard Python types.
+    """
     def forward(self, members, constraints):
-        # In a real DSPy application, you would call the language model like this:
-        # result = self.generate_roster(members=members, constraints=constraints)
-        # return result.roster
+        """
+        Generates a roster for a 7-day period starting from tomorrow.
 
-        # For this example, we'll use the ported Python logic as a mock.
+        Args:
+            members (list of dict): A list of team members. e.g., [{'name': 'Alice', 'role': 'Engineer'}]
+            constraints (list of dict): A list of structured constraints.
+                                        e.g., [{'type': 'needs_day_off', 'name': 'Alice', 'date': '2024-10-21'}]
+
+        Returns:
+            A dictionary representing the roster with date strings as keys.
+        """
         roster = self._generate_automated_roster_mock(members, constraints)
-        return dspy.Prediction(roster=roster)
+        # The original returned a dspy.Prediction object, now we just return the roster dict.
+        # To match the structure main.py expects, we wrap it.
+        return type('Prediction', (), {'roster': roster})()
 
-    def _generate_automated_roster_mock(self, members, user_constraints):
-        days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
-        shifts = ["Morning", "Afternoon", "Evening", "Night"]
+
+    def _generate_automated_roster_mock(self, members, parsed_constraints):
+        # Generate for the next 7 days starting from tomorrow
+        start_date = datetime.date.today() + datetime.timedelta(days=1)
+        days = [(start_date + datetime.timedelta(days=i)).strftime('%Y-%m-%d') for i in range(7)]
+
+        shifts = ["Morning", "Evening"] # Simplified shifts
         roster = {}
-        workload = {m['name']: {'totalShifts': 0, 'weekendShifts': 0, 'lastDayWorked': -1, 'shiftCounts': {s: 0 for s in shifts}} for m in members}
+        workload = {m['name']: {'totalShifts': 0, 'lastDayWorked': None} for m in members}
 
-        parsed_constraints = []
-        for c in user_constraints.lower().split('\n'):
-            match = re.search(r'(\w+)\s+needs\s+(\w+)\s+off', c)
-            if match:
-                parsed_constraints.append({'name': match.group(1), 'day': match.group(2)})
-
-        for day_index, day in enumerate(days):
-            roster[day] = {shift: [] for shift in shifts}
+        for day in days:
+            roster[day] = {}
             assigned_today = []
 
-            for c in parsed_constraints:
-                if c['day'].lower() == day.lower():
-                    member_name = next((m['name'] for m in members if m['name'].lower() == c['name'].lower()), None)
-                    if member_name:
+            # Apply "needs_day_off" constraints for the current day
+            for constraint in parsed_constraints:
+                if constraint.get('type') == 'needs_day_off' and constraint.get('date') == day:
+                    # Find the full name from the member list, case-insensitively
+                    member_name = next((m['name'] for m in members if m['name'].lower() == constraint['name'].lower()), None)
+                    if member_name and member_name not in assigned_today:
                         assigned_today.append(member_name)
 
+            # Apply "must_work_shift" constraints
+            for constraint in parsed_constraints:
+                 if constraint.get('type') == 'must_work_shift' and constraint.get('date') == day:
+                    member_name = next((m['name'] for m in members if m['name'].lower() == constraint['name'].lower()), None)
+                    shift = constraint.get('shift')
+                    if member_name and shift and member_name not in assigned_today:
+                        roster[day][shift] = member_name
+                        assigned_today.append(member_name)
+                        workload[member_name]['totalShifts'] += 1
+                        workload[member_name]['lastDayWorked'] = day
+
+
+            # Fill remaining shifts
             for shift in shifts:
-                for _ in range(2):
-                    best_candidate = None
-                    best_score = -float('inf')
+                if shift in roster[day]: # Skip if filled by a constraint
+                    continue
 
-                    available_members = [m for m in members if m['name'] not in assigned_today and workload[m['name']]['lastDayWorked'] < day_index - 1]
-                    if not available_members:
-                        continue
+                # Simple round-robin for available members
+                available_members = sorted(
+                    [m for m in members if m['name'] not in assigned_today],
+                    key=lambda m: workload[m['name']]['totalShifts']
+                )
 
-                    for member in available_members:
-                        score = 100
-                        score -= workload[member['name']]['totalShifts'] * 10
-                        score -= workload[member['name']]['shiftCounts'][shift] * 5
-                        if day in ["Saturday", "Sunday"]:
-                            score -= workload[member['name']]['weekendShifts'] * 20
-                        if any(p['role'] == member['role'] for p in roster[day][shift]):
-                            score -= 50
+                if not available_members:
+                    roster[day][shift] = "Unassigned"
+                    continue
 
-                        if score > best_score:
-                            best_score = score
-                            best_candidate = member
+                best_candidate = available_members[0]
 
-                    if best_candidate:
-                        roster[day][shift].append({'name': best_candidate['name'], 'role': best_candidate['role']})
-                        assigned_today.append(best_candidate['name'])
-                        workload[best_candidate['name']]['totalShifts'] += 1
-                        workload[best_candidate['name']]['shiftCounts'][shift] += 1
-                        workload[best_candidate['name']]['lastDayWorked'] = day_index
-                        if day in ["Saturday", "Sunday"]:
-                            workload[best_candidate['name']]['weekendShifts'] += 1
-
-            roster[day]['Off'] = ', '.join([m['name'] for m in members if m['name'] not in assigned_today])
+                roster[day][shift] = best_candidate['name']
+                assigned_today.append(best_candidate['name'])
+                workload[best_candidate['name']]['totalShifts'] += 1
+                workload[best_candidate['name']]['lastDayWorked'] = day
 
         return roster
 
 # Example usage (for testing)
 if __name__ == '__main__':
-    # Mock DSPy setup
-    # dspy.configure(lm=dspy.OpenAI(model='gpt-3.5-turbo')) # This would be a real LM
-
-    # Mock members and constraints
     mock_members = [
-        {'name': 'Rohit', 'role': 'Development'},
-        {'name': 'Keerthi', 'role': 'Operations'},
-        {'name': 'Naresh', 'role': 'DBA'},
-        {'name': 'Saanvi', 'role': 'Support'},
-        {'name': 'Amit', 'role': 'Development'},
+        {'name': 'Alice', 'role': 'Engineer'},
+        {'name': 'Bob', 'role': 'Engineer'},
+        {'name': 'Eve', 'role': 'Support'},
     ]
-    mock_constraints = "Keerthi needs Saturday off"
 
-    # Instantiate and run the generator
+    tomorrow = (datetime.date.today() + datetime.timedelta(days=1)).strftime('%Y-%m-%d')
+
+    mock_constraints = [
+        {'type': 'needs_day_off', 'name': 'Alice', 'date': tomorrow},
+        {'type': 'must_work_shift', 'name': 'Eve', 'shift': 'Morning', 'date': tomorrow}
+    ]
+
     roster_gen = RosterGenerator()
     prediction = roster_gen.forward(members=mock_members, constraints=mock_constraints)
 

@@ -1,9 +1,5 @@
-const RequestPage = ({ engineerData, leaveRequests, onSubmit }) => {
-  const [activeTab, setActiveTab] = React.useState('leave');
-  const [leaveType, setLeaveType] = React.useState('Vacation');
-  const [startDate, setStartDate] = React.useState('');
-  const [endDate, setEndDate] = React.useState('');
-  const [reason, setReason] = React.useState('');
+const RequestPage = ({ handleSetAiAgentActive }) => {
+  const [activeTab, setActiveTab] = React.useState('swap');
 
   const Icon = (name, props = {}) => {
       const { size = 20, className = '' } = props;
@@ -16,30 +12,14 @@ const RequestPage = ({ engineerData, leaveRequests, onSubmit }) => {
       return <span className={className} dangerouslySetInnerHTML={{ __html: iconNode.toSvg({ width: size, height: size }) }} />;
   };
 
-  const handleLocalLeaveSubmit = (e) => {
+  const handleLeaveSubmit = (e) => {
     e.preventDefault();
-    if (!startDate || !endDate) {
-      alert('Please select a start and end date.');
-      return;
-    }
-    onSubmit({
-      leaveType,
-      startDate,
-      endDate,
-      reason,
-    });
-    // Clear form
-    setLeaveType('Vacation');
-    setStartDate('');
-    setEndDate('');
-    setReason('');
+    // In a real app, we would also submit the form data to an API.
+    // For now, we just log it and activate the AI agent.
+    console.log("Leave request submitted. Activating AI Assistant.");
+    handleSetAiAgentActive(true);
+    alert('Leave request submitted and AI Assistant has been activated!');
   };
-
-  const getStatusColor = (status) => {
-    if (status === 'Approved') return 'bg-green-100 text-green-800';
-    if (status === 'Rejected') return 'bg-red-100 text-red-800';
-    return 'bg-yellow-100 text-yellow-800';
-  }
 
   const renderSwapRequestTab = () => (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -79,13 +59,10 @@ const RequestPage = ({ engineerData, leaveRequests, onSubmit }) => {
     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         <DashboardCard>
             <h3 className="font-bold text-xl mb-4 text-gray-800">Submit a New Leave Request</h3>
-            <div className="mb-4 p-3 bg-blue-50 rounded-lg">
-              <p className="text-blue-800 font-semibold">Your available leave balance: {engineerData && engineerData.leaveBalance !== undefined ? `${engineerData.leaveBalance} days` : 'Loading...'}</p>
-            </div>
-            <form className="space-y-4" onSubmit={handleLocalLeaveSubmit}>
+            <form className="space-y-4" onSubmit={handleLeaveSubmit}>
                 <div>
                     <label htmlFor="leave-type" className="block text-sm font-medium text-gray-700">Leave Type</label>
-                    <select id="leave-type" value={leaveType} onChange={e => setLeaveType(e.target.value)} className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md">
+                    <select id="leave-type" name="leave-type" className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md">
                         <option>Vacation</option>
                         <option>Sick Leave</option>
                         <option>Personal</option>
@@ -94,16 +71,16 @@ const RequestPage = ({ engineerData, leaveRequests, onSubmit }) => {
                 <div className="flex space-x-4">
                     <div className="flex-1">
                         <label htmlFor="start-date" className="block text-sm font-medium text-gray-700">Start Date</label>
-                        <input type="date" id="start-date" value={startDate} onChange={e => setStartDate(e.target.value)} className="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2" />
+                        <input type="date" id="start-date" name="start-date" className="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2" />
                     </div>
                     <div className="flex-1">
                         <label htmlFor="end-date" className="block text-sm font-medium text-gray-700">End Date</label>
-                        <input type="date" id="end-date" value={endDate} onChange={e => setEndDate(e.target.value)} className="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2" />
+                        <input type="date" id="end-date" name="end-date" className="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2" />
                     </div>
                 </div>
                  <div>
                     <label htmlFor="reason" className="block text-sm font-medium text-gray-700">Reason (Optional)</label>
-                    <textarea id="reason" value={reason} onChange={e => setReason(e.target.value)} rows="3" className="mt-1 block w-full shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm border border-gray-300 rounded-md p-2"></textarea>
+                    <textarea id="reason" name="reason" rows="3" className="mt-1 block w-full shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm border border-gray-300 rounded-md p-2"></textarea>
                 </div>
                 <div>
                     <button type="submit" className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
@@ -115,17 +92,7 @@ const RequestPage = ({ engineerData, leaveRequests, onSubmit }) => {
          <DashboardCard>
             <h3 className="font-bold text-xl mb-4 text-gray-800">My Request History</h3>
             <div className="space-y-3">
-                {leaveRequests && leaveRequests.length > 0 ? (
-                    leaveRequests.map(req => (
-                        <div key={req.id} className={`p-3 rounded-lg ${getStatusColor(req.status)}`}>
-                            <p className="font-bold">{req.startDate} to {req.endDate}</p>
-                            <p className="text-sm">Status: {req.status}</p>
-                            {req.reason && <p className="text-sm mt-1"><em>"{req.reason}"</em></p>}
-                        </div>
-                    ))
-                ) : (
-                    <p className="text-gray-500">You have no past leave requests.</p>
-                )}
+                <p className="text-gray-500">You have no past leave requests.</p>
             </div>
         </DashboardCard>
     </div>
