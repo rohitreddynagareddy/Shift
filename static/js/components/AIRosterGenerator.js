@@ -1,10 +1,8 @@
-const AIRosterGenerator = () => {
+const AIRosterGenerator = ({ members, fileName, onFileUpload, uploadError, isUploading }) => {
   const [isRosterLoading, setIsRosterLoading] = React.useState(false);
   const [rosterError, setRosterError] = React.useState(null);
   const [generatedRoster, setGeneratedRoster] = React.useState(null);
   const [constraints, setConstraints] = React.useState('');
-  const [members, setMembers] = React.useState([]);
-  const [fileName, setFileName] = React.useState('');
 
   const Icon = (name, props = {}) => {
       const { size = 20, className = '' } = props;
@@ -17,37 +15,11 @@ const AIRosterGenerator = () => {
       return <span className={className} dangerouslySetInnerHTML={{ __html: iconNode.toSvg({ width: size, height: size }) }} />;
   };
 
-  const handleFileUpload = (event) => {
+  const handleFileSelect = (event) => {
     const file = event.target.files[0];
-    if (!file) return;
-
-    setFileName(file.name);
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        try {
-            const data = new Uint8Array(e.target.result);
-            const workbook = XLSX.read(data, { type: 'array' });
-            const employeesSheetName = 'Employees';
-            if (!workbook.SheetNames.includes(employeesSheetName)) {
-                throw new Error(`Excel file must contain a sheet named "${employeesSheetName}".`);
-            }
-            const worksheet = workbook.Sheets[employeesSheetName];
-            const jsonData = XLSX.utils.sheet_to_json(worksheet);
-            if (jsonData.length === 0) {
-                throw new Error('The "Employees" sheet is empty.');
-            }
-            if (!('Name' in jsonData[0]) || !('Role' in jsonData[0])) {
-                throw new Error('The "Employees" sheet must have "Name" and "Role" columns.');
-            }
-            setMembers(jsonData);
-            setRosterError(null);
-        } catch (error) {
-            setRosterError(`Error processing Excel file: ${error.message}`);
-            setMembers([]);
-            setFileName('');
-        }
-    };
-    reader.readAsArrayBuffer(file);
+    if (file) {
+      onFileUpload(file);
+    }
   };
 
   const handleGenerateRoster = async () => {
@@ -55,7 +27,7 @@ const AIRosterGenerator = () => {
     setRosterError(null);
     setGeneratedRoster(null);
 
-    if (members.length === 0) {
+    if (!members || members.length === 0) {
         setRosterError("No employee data found. Please upload an Excel file with employee details.");
         setIsRosterLoading(false);
         return;
@@ -87,15 +59,19 @@ const AIRosterGenerator = () => {
   const excelUploadSection = (
     <div className="bg-blue-50 border-l-4 border-blue-500 p-6 rounded-r-lg mb-8">
         <h2 className="text-xl font-bold text-gray-800 mb-2">Upload Employee Roster</h2>
-        <p className="text-gray-600 mb-4">Upload an Excel file (.xlsx, .xls) with an "Employees" sheet. Required columns: <strong>Name</strong> and <strong>Role</strong>.</p>
+        <p className="text-gray-600 mb-4">Upload an Excel file (.xlsx, .xls) to populate the employee list for the roster.</p>
         <div className="flex items-center space-x-4">
-            <label className="file-input-button bg-blue-500 text-white px-4 py-2 rounded-lg cursor-pointer hover:bg-blue-600 inline-flex items-center">
-                {Icon('Upload', {size: 20, className: 'mr-2'})}
-                <span>Choose File</span>
-                <input type="file" className="hidden" accept=".xlsx, .xls" onChange={handleFileUpload} />
+            <label className={`file-input-button bg-blue-500 text-white px-4 py-2 rounded-lg cursor-pointer hover:bg-blue-600 inline-flex items-center ${isUploading ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                {isUploading ? (
+                    <React.Fragment><div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div><span>Uploading...</span></React.Fragment>
+                ) : (
+                    <React.Fragment>{Icon('Upload', {size: 20, className: 'mr-2'})}<span>Choose File</span></React.Fragment>
+                )}
+                <input type="file" className="hidden" accept=".xlsx, .xls" onChange={handleFileSelect} disabled={isUploading} />
             </label>
             <span className="text-gray-600">{fileName || 'No file chosen'}</span>
         </div>
+        {uploadError && <div className="mt-2 text-red-600 text-sm">{uploadError}</div>}
     </div>
   );
 
