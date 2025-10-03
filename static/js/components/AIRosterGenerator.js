@@ -17,37 +17,38 @@ const AIRosterGenerator = () => {
       return <span className={className} dangerouslySetInnerHTML={{ __html: iconNode.toSvg({ width: size, height: size }) }} />;
   };
 
-  const handleFileUpload = (event) => {
+  const handleFileUpload = async (event) => {
     const file = event.target.files[0];
     if (!file) return;
 
     setFileName(file.name);
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        try {
-            const data = new Uint8Array(e.target.result);
-            const workbook = XLSX.read(data, { type: 'array' });
-            const employeesSheetName = 'Employees';
-            if (!workbook.SheetNames.includes(employeesSheetName)) {
-                throw new Error(`Excel file must contain a sheet named "${employeesSheetName}".`);
-            }
-            const worksheet = workbook.Sheets[employeesSheetName];
-            const jsonData = XLSX.utils.sheet_to_json(worksheet);
-            if (jsonData.length === 0) {
-                throw new Error('The "Employees" sheet is empty.');
-            }
-            if (!('Name' in jsonData[0]) || !('Role' in jsonData[0])) {
-                throw new Error('The "Employees" sheet must have "Name" and "Role" columns.');
-            }
-            setMembers(jsonData);
-            setRosterError(null);
-        } catch (error) {
-            setRosterError(`Error processing Excel file: ${error.message}`);
-            setMembers([]);
-            setFileName('');
+    setRosterError(null);
+    setIsRosterLoading(true);
+
+    const formData = new FormData();
+    formData.append('roster_file', file);
+
+    try {
+        const response = await fetch('/api/upload_roster', {
+            method: 'POST',
+            body: formData,
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
         }
-    };
-    reader.readAsArrayBuffer(file);
+
+        const result = await response.json();
+        setMembers(result.employees); // Update members from server response
+        // Optionally show a success message
+    } catch (err) {
+        setRosterError(`Error uploading file: ${err.message}`);
+        setMembers([]);
+        setFileName('');
+    } finally {
+        setIsRosterLoading(false);
+    }
   };
 
   const handleGenerateRoster = async () => {

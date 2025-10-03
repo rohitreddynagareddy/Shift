@@ -133,7 +133,43 @@ def update_leave_request(request_id):
 
 # --- Roster API ---
 from roster_generator import RosterGenerator
+import openpyxl
 roster_generator_instance = RosterGenerator()
+
+@app.route('/api/upload_roster', methods=['POST'])
+def upload_roster():
+    global employees
+    if 'roster_file' not in request.files:
+        return jsonify({"error": "No file part"}), 400
+    file = request.files['roster_file']
+    if file.filename == '':
+        return jsonify({"error": "No selected file"}), 400
+    if file and file.filename.endswith('.xlsx'):
+        try:
+            workbook = openpyxl.load_workbook(file)
+            sheet = workbook.active
+
+            new_employees = {}
+            for i, row in enumerate(sheet.iter_rows(min_row=2, values_only=True)):
+                name, role = row[0], row[1]
+                new_id = i + 1
+                new_employees[new_id] = {
+                    "id": new_id,
+                    "name": name,
+                    "role": role,
+                    "leaveBalance": 20,  # Default value
+                    "isAiAgentActive": False, # Default value
+                    "performance": {"tasksCompleted": 0, "codeQuality": 0, "kudos": []}, # Default value
+                    "schedule": []
+                }
+
+            employees = new_employees
+            return jsonify({"message": "Roster uploaded and employees updated successfully", "employees": list(employees.values())}), 200
+        except Exception as e:
+            log_to_file(f"Error processing XLSX file: {e}")
+            return jsonify({"error": f"Failed to process file: {str(e)}"}), 500
+    else:
+        return jsonify({"error": "Invalid file type, please upload an .xlsx file"}), 400
 
 @app.route('/api/generate_roster', methods=['POST'])
 def generate_roster():
