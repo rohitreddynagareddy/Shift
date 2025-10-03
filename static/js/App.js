@@ -64,18 +64,42 @@ const App = () => {
   // --- STATE MANAGEMENT ---
   const [userType, setUserType] = React.useState('manager');
   const [view, setView] = React.useState('home');
-  const [uploadedFileName, setUploadedFileName] = React.useState(null);
-  const [managerData, setManagerData] = React.useState(null);
-  const [engineerData, setEngineerData] = React.useState(null);
+  const [managerData, setManagerData] = React.useState(null); // Kept for now
+  const [engineerData, setEngineerData] = React.useState(null); // Kept for now
   const [isAiAgentActive, setIsAiAgentActive] = React.useState(false);
 
+  const [employees, setEmployees] = React.useState([]);
+  const [uploadedFileName, setUploadedFileName] = React.useState(null);
+  const [isLoading, setIsLoading] = React.useState(true);
+
   React.useEffect(() => {
+    // Keep mock data loading for components that haven't been refactored
     setManagerData(initialManagerData);
     setEngineerData(initialEngineerData);
     if (initialEngineerData && initialEngineerData.aiAgent) {
       setIsAiAgentActive(initialEngineerData.aiAgent.isOnLeave);
     }
+
+    // Fetch real employee data
+    setIsLoading(true);
+    fetch('/api/employees')
+      .then(res => res.json())
+      .then(data => {
+        setEmployees(data);
+        setIsLoading(false);
+      })
+      .catch(err => {
+        console.error("Failed to fetch employees", err);
+        setIsLoading(false);
+      });
   }, []);
+
+  const handleEmployeesUpdate = (newEmployees, fileName) => {
+    setEmployees(newEmployees);
+    if (fileName) {
+      setUploadedFileName(fileName);
+    }
+  };
 
   // --- EVENT HANDLERS ---
   const handleSwitchUserType = () => {
@@ -96,16 +120,20 @@ const App = () => {
 
   // --- RENDER LOGIC ---
   const renderView = () => {
+    if (isLoading) {
+      return <div className="p-8">Loading...</div>;
+    }
+
     if (userType === 'manager') {
       switch (view) {
         case 'home':
-          return <ManagerDashboard managerData={managerData} />;
+          return <ManagerDashboard managerData={managerData} employees={employees} />;
         case 'roster':
-          return <AIRosterGenerator />;
+          return <AIRosterGenerator employees={employees} onEmployeesUpdate={handleEmployeesUpdate} />;
         case 'analytics':
-          return <TeamAnalytics managerData={managerData} />;
+          return <TeamAnalytics managerData={managerData} employees={employees} />;
         case 'schedule':
-          return <ScheduleManager managerData={managerData} />;
+          return <ScheduleManager managerData={managerData} employees={employees} />;
         default:
           return <div className="p-8">Page not yet implemented: {view}</div>;
       }

@@ -1,4 +1,4 @@
-const ManagerDashboard = ({ managerData }) => {
+const ManagerDashboard = ({ managerData, employees }) => {
   // This helper function renders icons from the global 'lucide' object
   const Icon = (name, props = {}) => {
       const { size = 20, className = '' } = props;
@@ -11,11 +11,11 @@ const ManagerDashboard = ({ managerData }) => {
       return <span className={className} dangerouslySetInnerHTML={{ __html: iconNode.toSvg({ width: size, height: size }) }} />;
   };
 
-  if (!managerData) {
+  if (!managerData || !employees) {
     return <div className="p-8">Loading...</div>;
   }
 
-  const { operationalPulse, futureCast, teamWellness, teamTickets } = managerData;
+  const { operationalPulse, futureCast, teamWellness } = managerData;
   const { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } = Recharts;
 
   const getSeverityClass = (severity) => {
@@ -34,16 +34,20 @@ const ManagerDashboard = ({ managerData }) => {
     }
   };
 
+  const chartData = employees.map(emp => ({
+    name: emp.name,
+    tasksCompleted: emp.performance.tasksCompleted
+  }));
+
   const teamTicketChart = (
     <ResponsiveContainer width="100%" height={300}>
-      <BarChart data={teamTickets} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+      <BarChart data={chartData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
         <CartesianGrid strokeDasharray="3 3" vertical={false} />
         <XAxis dataKey="name" />
         <YAxis />
         <Tooltip wrapperClassName="bg-white shadow-lg rounded-lg p-2" />
         <Legend />
-        <Bar dataKey="serviceNow" stackId="a" fill="#3b82f6" name="ServiceNow" />
-        <Bar dataKey="jira" stackId="a" fill="#10b981" name="Jira" />
+        <Bar dataKey="tasksCompleted" fill="#3b82f6" name="Tasks Completed" />
       </BarChart>
     </ResponsiveContainer>
   );

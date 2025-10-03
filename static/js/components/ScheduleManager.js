@@ -1,4 +1,4 @@
-const ScheduleManager = ({ managerData }) => {
+const ScheduleManager = ({ employees }) => {
   const [currentMonth, setCurrentMonth] = React.useState(new Date());
 
   const Icon = (name, props = {}) => {
@@ -22,7 +22,7 @@ const ScheduleManager = ({ managerData }) => {
     }
   };
 
-  if (!managerData) {
+  if (!employees || employees.length === 0) {
     return <div className="p-8">Loading...</div>;
   }
 
@@ -33,11 +33,11 @@ const ScheduleManager = ({ managerData }) => {
   const blanks = Array(firstDayOfMonth).fill(null);
   const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
 
-  // Simplified schedule logic for demonstration
+  // Simplified schedule logic for demonstration, now using live employee data
   const schedule = {};
   for(let day = 1; day <= daysInMonth; day++) {
       schedule[day] = { Morning: [], Afternoon: [], Evening: [], Night: [], Off: [] };
-      managerData.teamTickets.forEach((member, index) => {
+      employees.forEach((member, index) => {
           const shiftIndex = (day + index) % 5;
           if (shiftIndex === 0) schedule[day].Morning.push(member);
           else if (shiftIndex === 1) schedule[day].Afternoon.push(member);

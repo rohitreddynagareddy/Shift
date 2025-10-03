@@ -1,9 +1,8 @@
-const AIRosterGenerator = () => {
+const AIRosterGenerator = ({ employees, onEmployeesUpdate }) => {
   const [isRosterLoading, setIsRosterLoading] = React.useState(false);
   const [rosterError, setRosterError] = React.useState(null);
   const [generatedRoster, setGeneratedRoster] = React.useState(null);
   const [constraints, setConstraints] = React.useState('');
-  const [members, setMembers] = React.useState([]);
   const [fileName, setFileName] = React.useState('');
 
   const Icon = (name, props = {}) => {
@@ -40,11 +39,10 @@ const AIRosterGenerator = () => {
         }
 
         const result = await response.json();
-        setMembers(result.employees); // Update members from server response
-        // Optionally show a success message
+        onEmployeesUpdate(result.employees, file.name);
     } catch (err) {
         setRosterError(`Error uploading file: ${err.message}`);
-        setMembers([]);
+        onEmployeesUpdate([], '');
         setFileName('');
     } finally {
         setIsRosterLoading(false);
@@ -56,7 +54,7 @@ const AIRosterGenerator = () => {
     setRosterError(null);
     setGeneratedRoster(null);
 
-    if (members.length === 0) {
+    if (employees.length === 0) {
         setRosterError("No employee data found. Please upload an Excel file with employee details.");
         setIsRosterLoading(false);
         return;
@@ -68,7 +66,7 @@ const AIRosterGenerator = () => {
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ members, constraints }),
+            body: JSON.stringify({ members: employees, constraints }),
         });
 
         if (!response.ok) {
