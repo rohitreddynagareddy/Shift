@@ -85,12 +85,10 @@ class RosterGenerator(dspy.Module):
                         if day in ["Saturday", "Sunday"] and wl['weekendShifts'] > 0:
                             score -= (wl['weekendShifts'] * 30)
 
-                        # 4. Encourage role diversity on a shift
+                        # 4. Enforce role diversity on a shift with a very high penalty
                         roles_on_shift = [p['role'] for p in roster[day][shift]]
                         if member['role'] in roles_on_shift:
-                            score -= 50 # Penalize adding a duplicate role
-                        else:
-                            score += 20 # Reward adding a new role
+                            score -= 1000 # Heavily penalize adding a duplicate role
 
                         # 5. Penalize taking the same shift type too often
                         score -= wl['shiftCounts'][shift] * 5
