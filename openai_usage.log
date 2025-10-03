@@ -1,0 +1,21 @@
+ * Debugger is active!
+ * Debugger PIN: 148-452-288
+ * Debugger is active!
+ * Debugger PIN: 148-452-288
+127.0.0.1 - - [03/Oct/2025 13:41:21] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [03/Oct/2025 13:41:21] "GET /static/css/style.css HTTP/1.1" 200 -
+127.0.0.1 - - [03/Oct/2025 13:41:23] "GET /static/js/bundle.js HTTP/1.1" 200 -
+127.0.0.1 - - [03/Oct/2025 13:41:24] "GET /api/leave_requests HTTP/1.1" 200 -
+127.0.0.1 - - [03/Oct/2025 13:41:24] "GET /api/employees HTTP/1.1" 200 -
+ * Debugger is active!
+ * Debugger PIN: 148-452-288
+127.0.0.1 - - [03/Oct/2025 13:42:09] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [03/Oct/2025 13:42:09] "GET /static/css/style.css HTTP/1.1" 200 -
+127.0.0.1 - - [03/Oct/2025 13:42:10] "GET /static/js/bundle.js HTTP/1.1" 200 -
+127.0.0.1 - - [03/Oct/2025 13:42:10] "GET /api/employees HTTP/1.1" 200 -
+127.0.0.1 - - [03/Oct/2025 13:42:10] "GET /api/leave_requests HTTP/1.1" 200 -
+127.0.0.1 - - [03/Oct/2025 13:42:11] "POST /api/employees/upload HTTP/1.1" 200 -
+127.0.0.1 - - [03/Oct/2025 13:42:11] "GET /api/employees HTTP/1.1" 200 -
+127.0.0.1 - - [03/Oct/2025 13:42:11] "GET /api/leave_requests HTTP/1.1" 200 -
+ * Debugger is active!
+ * Debugger PIN: 148-452-288

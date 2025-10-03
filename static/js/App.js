@@ -68,6 +68,8 @@ const App = () => {
   const [managerData, setManagerData] = React.useState(null);
   const [engineerData, setEngineerData] = React.useState(null);
   const [isAiAgentActive, setIsAiAgentActive] = React.useState(false);
+  const [uploadError, setUploadError] = React.useState(null);
+  const [isUploading, setIsUploading] = React.useState(false);
 
   React.useEffect(() => {
     setManagerData(initialManagerData);
@@ -94,6 +96,38 @@ const App = () => {
     setIsAiAgentActive(isActive);
   };
 
+  const handleFileUpload = async (file) => {
+    setIsUploading(true);
+    setUploadError(null);
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const response = await fetch('/api/employees/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'File upload failed');
+      }
+
+      const result = await response.json();
+      setManagerData(prevData => ({
+        ...prevData,
+        teamTickets: result.employees,
+      }));
+      setUploadedFileName(result.fileName);
+    } catch (error) {
+      console.error("Upload failed:", error);
+      setUploadError(error.message);
+      setUploadedFileName(null); // Clear filename on error
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   // --- RENDER LOGIC ---
   const renderView = () => {
     if (userType === 'manager') {
@@ -101,7 +135,13 @@ const App = () => {
         case 'home':
           return <ManagerDashboard managerData={managerData} />;
         case 'roster':
-          return <AIRosterGenerator />;
+          return <AIRosterGenerator
+            members={managerData ? managerData.teamTickets : []}
+            fileName={uploadedFileName}
+            onFileUpload={handleFileUpload}
+            uploadError={uploadError}
+            isUploading={isUploading}
+          />;
         case 'analytics':
           return <TeamAnalytics managerData={managerData} />;
         case 'schedule':
