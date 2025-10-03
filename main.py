@@ -42,10 +42,13 @@ def generate_roster():
     members = data['members']
     constraints = data.get('constraints', '')
 
+    # Normalize keys to lowercase to match what the roster generator expects
+    normalized_members = [{k.lower(): v for k, v in member.items()} for member in members]
+
     try:
         # Use the roster generator instance
         global current_roster
-        prediction = roster_generator_instance.forward(members=members, constraints=constraints)
+        prediction = roster_generator_instance.forward(members=normalized_members, constraints=constraints)
         current_roster = prediction.roster
         log_to_file(f"Generated and saved roster: {json.dumps(current_roster, indent=2)}")
         return jsonify(current_roster)
