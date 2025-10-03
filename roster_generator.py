@@ -25,41 +25,75 @@ class RosterGenerator(dspy.Module):
         days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
         shifts = ["Morning", "Afternoon", "Evening", "Night"]
         roster = {}
-        workload = {m['name']: {'totalShifts': 0, 'weekendShifts': 0, 'lastDayWorked': -1, 'shiftCounts': {s: 0 for s in shifts}} for m in members}
+
+        if not members:
+            return {}
+
+        workload = {m['name']: {'totalShifts': 0, 'weekendShifts': 0, 'lastDayWorked': -2, 'shiftCounts': {s: 0 for s in shifts}} for m in members}
+
+        # Dynamic scaling of people per shift
+        # Aims for a 5-day work week spread over 7 days (4 shifts per day)
+        people_per_shift = max(2, round(len(members) * 5 / (len(days) * len(shifts))))
+
+        # Calculate average shifts for workload balancing
+        total_shifts_to_assign = len(days) * len(shifts) * people_per_shift
+        average_shifts_per_person = total_shifts_to_assign / len(members)
 
         parsed_constraints = []
         for c in user_constraints.lower().split('\n'):
             match = re.search(r'(\w+)\s+needs\s+(\w+)\s+off', c)
             if match:
-                parsed_constraints.append({'name': match.group(1), 'day': match.group(2)})
+                parsed_constraints.append({'name': match.group(1).lower(), 'day': match.group(2).lower()})
 
         for day_index, day in enumerate(days):
             roster[day] = {shift: [] for shift in shifts}
             assigned_today = []
 
+            # Pre-assign "off" days based on constraints
             for c in parsed_constraints:
-                if c['day'].lower() == day.lower():
-                    member_name = next((m['name'] for m in members if m['name'].lower() == c['name'].lower()), None)
-                    if member_name:
-                        assigned_today.append(member_name)
+                if c['day'] == day.lower():
+                    member_name_match = next((m['name'] for m in members if m['name'].lower() == c['name']), None)
+                    if member_name_match and member_name_match not in assigned_today:
+                        assigned_today.append(member_name_match)
 
             for shift in shifts:
-                for _ in range(2):
+                for _ in range(people_per_shift):
                     best_candidate = None
                     best_score = -float('inf')
 
-                    available_members = [m for m in members if m['name'] not in assigned_today and workload[m['name']]['lastDayWorked'] < day_index - 1]
+                    available_members = [m for m in members if m['name'] not in assigned_today]
+
                     if not available_members:
                         continue
 
                     for member in available_members:
                         score = 100
-                        score -= workload[member['name']]['totalShifts'] * 10
-                        score -= workload[member['name']]['shiftCounts'][shift] * 5
-                        if day in ["Saturday", "Sunday"]:
-                            score -= workload[member['name']]['weekendShifts'] * 20
-                        if any(p['role'] == member['role'] for p in roster[day][shift]):
-                            score -= 50
+                        wl = workload[member['name']]
+
+                        # 1. Heavily penalize assigning more shifts than average
+                        if wl['totalShifts'] > average_shifts_per_person:
+                            score -= (wl['totalShifts'] - average_shifts_per_person) * 25
+                        # Reward taking shifts if below average
+                        else:
+                            score += (average_shifts_per_person - wl['totalShifts']) * 10
+
+                        # 2. Penalize working consecutive days
+                        if wl['lastDayWorked'] == day_index - 1:
+                            score -= 40
+
+                        # 3. Penalize weekend shifts heavily
+                        if day in ["Saturday", "Sunday"] and wl['weekendShifts'] > 0:
+                            score -= (wl['weekendShifts'] * 30)
+
+                        # 4. Encourage role diversity on a shift
+                        roles_on_shift = [p['role'] for p in roster[day][shift]]
+                        if member['role'] in roles_on_shift:
+                            score -= 50 # Penalize adding a duplicate role
+                        else:
+                            score += 20 # Reward adding a new role
+
+                        # 5. Penalize taking the same shift type too often
+                        score -= wl['shiftCounts'][shift] * 5
 
                         if score > best_score:
                             best_score = score
@@ -68,13 +102,18 @@ class RosterGenerator(dspy.Module):
                     if best_candidate:
                         roster[day][shift].append({'name': best_candidate['name'], 'role': best_candidate['role']})
                         assigned_today.append(best_candidate['name'])
-                        workload[best_candidate['name']]['totalShifts'] += 1
-                        workload[best_candidate['name']]['shiftCounts'][shift] += 1
-                        workload[best_candidate['name']]['lastDayWorked'] = day_index
-                        if day in ["Saturday", "Sunday"]:
-                            workload[best_candidate['name']]['weekendShifts'] += 1
 
-            roster[day]['Off'] = ', '.join([m['name'] for m in members if m['name'] not in assigned_today])
+                        # Update workload
+                        wl = workload[best_candidate['name']]
+                        wl['totalShifts'] += 1
+                        wl['shiftCounts'][shift] += 1
+                        wl['lastDayWorked'] = day_index
+                        if day in ["Saturday", "Sunday"]:
+                            wl['weekendShifts'] += 1
+
+            # Assign remaining people to 'Off'
+            off_today = [m['name'] for m in members if m['name'] not in assigned_today]
+            roster[day]['Off'] = ', '.join(sorted(off_today))
 
         return roster
 
