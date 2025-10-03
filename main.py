@@ -3,6 +3,7 @@ from roster_generator import RosterGenerator
 import json
 import datetime
 from datetime import timedelta
+import openpyxl
 
 app = Flask(__name__)
 
@@ -331,6 +332,83 @@ def get_team_averages():
 
     log_to_file(f"Calculated team averages: {json.dumps(averages, indent=2)}")
     return jsonify(averages)
+
+@app.route('/api/employees/upload', methods=['POST'])
+def upload_employees():
+    global employees_db
+    log_to_file("Upload employees route was hit.")
+
+    if 'file' not in request.files:
+        log_to_file("Error: No file part in the request.")
+        return jsonify({"error": "No file part"}), 400
+
+    file = request.files['file']
+    if file.filename == '':
+        log_to_file("Error: No selected file.")
+        return jsonify({"error": "No selected file"}), 400
+
+    if file and file.filename.endswith(('.xlsx', '.xls')):
+        try:
+            workbook = openpyxl.load_workbook(file)
+            sheet = workbook['Employees'] # Or workbook.active
+
+            headers = [cell.value for cell in sheet[1]]
+            if "Name" not in headers or "Role" not in headers:
+                log_to_file("Error: Missing 'Name' or 'Role' column in Excel file.")
+                return jsonify({"error": "Missing 'Name' or 'Role' column"}), 400
+
+            # Create a map of existing employees for efficient lookup and update
+            existing_employees_map = {emp['name']: emp for emp in employees_db}
+
+            for row in sheet.iter_rows(min_row=2, values_only=True):
+                new_emp_data = dict(zip(headers, row))
+                name = new_emp_data.get('Name')
+
+                # Skip rows without a name
+                if not name:
+                    continue
+
+                if name in existing_employees_map:
+                    # Update existing employee's data
+                    existing_employees_map[name].update({
+                        "role": new_emp_data.get('Role', existing_employees_map[name].get('role')),
+                        "serviceNow": new_emp_data.get('ServiceNow', existing_employees_map[name].get('serviceNow')),
+                        "jira": new_emp_data.get('Jira', existing_employees_map[name].get('jira')),
+                        "csat": new_emp_data.get('CSAT', existing_employees_map[name].get('csat')),
+                        "ticketsResolved": new_emp_data.get('TicketsResolved', existing_employees_map[name].get('ticketsResolved')),
+                        "avgResolutionTime": new_emp_data.get('AvgResolutionTime', existing_employees_map[name].get('avgResolutionTime')),
+                    })
+                else:
+                    # Add new employee with default values for any missing fields
+                    existing_employees_map[name] = {
+                        "name": name,
+                        "role": new_emp_data.get('Role'),
+                        "serviceNow": new_emp_data.get('ServiceNow', 0),
+                        "jira": new_emp_data.get('Jira', 0),
+                        "csat": new_emp_data.get('CSAT', 0),
+                        "ticketsResolved": new_emp_data.get('TicketsResolved', 0),
+                        "avgResolutionTime": new_emp_data.get('AvgResolutionTime', 0),
+                        "leaveBalance": 20,
+                        "isAiAgentActive": False
+                    }
+
+            # Convert the map back to a list
+            employees_db = list(existing_employees_map.values())
+            log_to_file(f"Successfully updated employees_db: {json.dumps(employees_db, indent=2)}")
+            return jsonify({
+                "message": "Employee data updated successfully",
+                "fileName": file.filename,
+                "employees": employees_db
+            }), 200
+
+        except KeyError:
+            log_to_file("Error: 'Employees' sheet not found in the Excel file.")
+            return jsonify({"error": "'Employees' sheet not found"}), 400
+        except Exception as e:
+            log_to_file(f"Error processing Excel file: {e}")
+            return jsonify({"error": f"Failed to process Excel file: {e}"}), 500
+
+    return jsonify({"error": "Invalid file type"}), 400
 
 
 if __name__ == '__main__':

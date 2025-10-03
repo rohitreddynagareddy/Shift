@@ -1,4 +1,4 @@
-const AIRosterGenerator = () => {
+const AIRosterGenerator = ({ onUploadSuccess, addNotification }) => {
   const [isRosterLoading, setIsRosterLoading] = React.useState(false);
   const [rosterError, setRosterError] = React.useState(null);
   const [generatedRoster, setGeneratedRoster] = React.useState(null);
@@ -17,37 +17,38 @@ const AIRosterGenerator = () => {
       return <span className={className} dangerouslySetInnerHTML={{ __html: iconNode.toSvg({ width: size, height: size }) }} />;
   };
 
-  const handleFileUpload = (event) => {
+  const handleFileUpload = async (event) => {
     const file = event.target.files[0];
     if (!file) return;
 
     setFileName(file.name);
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        try {
-            const data = new Uint8Array(e.target.result);
-            const workbook = XLSX.read(data, { type: 'array' });
-            const employeesSheetName = 'Employees';
-            if (!workbook.SheetNames.includes(employeesSheetName)) {
-                throw new Error(`Excel file must contain a sheet named "${employeesSheetName}".`);
-            }
-            const worksheet = workbook.Sheets[employeesSheetName];
-            const jsonData = XLSX.utils.sheet_to_json(worksheet);
-            if (jsonData.length === 0) {
-                throw new Error('The "Employees" sheet is empty.');
-            }
-            if (!('Name' in jsonData[0]) || !('Role' in jsonData[0])) {
-                throw new Error('The "Employees" sheet must have "Name" and "Role" columns.');
-            }
-            setMembers(jsonData);
-            setRosterError(null);
-        } catch (error) {
-            setRosterError(`Error processing Excel file: ${error.message}`);
-            setMembers([]);
-            setFileName('');
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+        const response = await fetch('/api/employees/upload', {
+            method: 'POST',
+            body: formData,
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || `HTTP error! status: ${response.status}`);
         }
-    };
-    reader.readAsArrayBuffer(file);
+
+        setMembers(data.employees.map(emp => ({ Name: emp.name, Role: emp.role })));
+        setRosterError(null);
+        addNotification(`Successfully uploaded ${file.name}.`, 'success');
+        if (onUploadSuccess) {
+            onUploadSuccess();
+        }
+    } catch (error) {
+        setRosterError(`Error uploading file: ${error.message}`);
+        addNotification(`Error uploading file: ${error.message}`, 'error');
+        setMembers([]);
+        setFileName('');
+    }
   };
 
   const handleGenerateRoster = async () => {
@@ -1705,46 +1706,52 @@ const App = () => {
     }
   };
 
-  // --- LIFECYCLE ---
-  React.useEffect(() => {
-    const fetchInitialData = async () => {
-      try {
-        const [employeesRes, leaveRes] = await Promise.all([
-          fetch('/api/employees'),
-          fetch('/api/leave_requests')
-        ]);
+  // --- DATA FETCHING & LIFECYCLE ---
+  const fetchInitialData = async () => {
+    try {
+      const [employeesRes, leaveRes] = await Promise.all([
+        fetch('/api/employees'),
+        fetch('/api/leave_requests')
+      ]);
 
-        if (!employeesRes.ok || !leaveRes.ok) {
-          throw new Error('Failed to fetch initial data');
-        }
-
-        const employees = await employeesRes.json();
-        const leaveRequests = await leaveRes.json();
-
-        setLeaveRequests(leaveRequests);
-
-        const firstEngineer = employees[0];
-        if (firstEngineer) {
-            const fullEngineerData = {
-                ...initialEngineerData,
-                ...firstEngineer,
-            };
-            setEngineerData(fullEngineerData);
-            setIsAiAgentActive(firstEngineer.isAiAgentActive);
-        } else {
-            setEngineerData(initialEngineerData);
-        }
-
-        setManagerData(initialManagerData);
-
-      } catch (error) {
-        console.error("Error fetching initial data:", error);
-        setManagerData(initialManagerData);
-        setEngineerData(initialEngineerData);
-        setLeaveRequests([]);
+      if (!employeesRes.ok || !leaveRes.ok) {
+        throw new Error('Failed to fetch initial data');
       }
-    };
 
+      const employees = await employeesRes.json();
+      const leaveRequestsData = await leaveRes.json();
+
+      setLeaveRequests(leaveRequestsData);
+
+      // Update manager data with fresh employee list
+      setManagerData(prevData => ({
+          ...initialManagerData, // Reset with static mock data structure
+          teamTickets: employees, // Overwrite with live data
+      }));
+
+      // Update engineer data
+      const firstEngineer = employees[0];
+      if (firstEngineer) {
+          const fullEngineerData = {
+              ...initialEngineerData, // Base template
+              ...firstEngineer,       // Overwrite with fetched data
+          };
+          setEngineerData(fullEngineerData);
+          setIsAiAgentActive(firstEngineer.isAiAgentActive);
+      } else {
+          setEngineerData(initialEngineerData); // Fallback to mock
+      }
+
+    } catch (error) {
+      addNotification(`Error fetching data: ${error.message}`, 'error');
+      // Fallback to initial mock data on error
+      setManagerData(initialManagerData);
+      setEngineerData(initialEngineerData);
+      setLeaveRequests([]);
+    }
+  };
+
+  React.useEffect(() => {
     fetchInitialData();
   }, []);
 
@@ -1755,7 +1762,7 @@ const App = () => {
         case 'home':
           return <ManagerDashboard managerData={managerData} />;
         case 'roster':
-          return <AIRosterGenerator />;
+          return <AIRosterGenerator onUploadSuccess={fetchInitialData} addNotification={addNotification} />;
         case 'analytics':
           return <TeamAnalytics managerData={managerData} />;
         case 'schedule':
