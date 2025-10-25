@@ -110,8 +110,6 @@ const App = () => {
           return <ScheduleManager managerData={{ teamTickets: employees }} />;
         case 'gamification':
           return <ManagerGamificationPage employees={employees} />;
-        case 'leaderboard':
-          return <Leaderboard />;
         default:
           return <div className="p-8">Page not yet implemented: {view}</div>;
       }
@@ -123,8 +121,6 @@ const App = () => {
           return <EngineerSchedule engineerData={engineerData} />;
         case 'gamification':
             return <GamificationDashboard engineerName={engineerData ? engineerData.name : ''} />;
-        case 'leaderboard':
-            return <Leaderboard />;
         case 'request':
           return <RequestPage handleSetAiAgentActive={handleSetAiAgentActive} />;
         default:

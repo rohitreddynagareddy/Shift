@@ -1675,6 +1675,7 @@ const Sidebar = ({ userType, uploadedFileName, activeView, onNavigate }) => {
   const engineerLinks = [
     { name: 'Home', iconName: 'Briefcase', view: 'home' },
     { name: 'My Schedule', iconName: 'Calendar', view: 'schedule' },
+    { name: 'Gamification', iconName: 'Star', view: 'gamification' },
     { name: 'Yearly Schedule', iconName: 'CalendarDays', view: 'yearly_schedule' },
     { name: 'Request Swap/Leave', iconName: 'ArrowRightLeft', view: 'request' },
     { name: 'Cab Requests', iconName: 'Car', view: 'cab' },
