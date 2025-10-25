@@ -1667,6 +1667,7 @@ const Sidebar = ({ userType, uploadedFileName, activeView, onNavigate }) => {
     { name: 'AI Roster Generator', iconName: 'BrainCircuit', view: 'roster' },
     { name: 'Team Analytics', iconName: 'BarChart2', view: 'analytics' },
     { name: 'Schedule Manager', iconName: 'Calendar', view: 'schedule' },
+    { name: 'Gamification', iconName: 'Star', view: 'gamification' },
     { name: 'Yearly Schedule', iconName: 'CalendarDays', view: 'yearly_schedule' },
     { name: 'Leave Approvals', iconName: 'CheckSquare', view: 'approvals' },
     { name: 'Cab Requests', iconName: 'Car', view: 'cab_requests' },
@@ -2146,6 +2147,8 @@ const App = () => {
           return <TeamAnalytics managerData={managerData} />;
         case 'schedule':
           return <ScheduleManager managerData={managerData} />;
+        case 'gamification':
+          return <ManagerGamificationPage employees={employees} />;
         case 'yearly_schedule':
           return <YearlySchedulePage userType={userType} engineerData={engineerData} managerData={managerData} />;
         case 'approvals':
@@ -2161,6 +2164,8 @@ const App = () => {
           return <EngineerDashboard engineerData={engineerData} isAiAgentActive={isAiAgentActive} handleSetAiAgentActive={handleSetAiAgentActive} onNavigate={handleNavigate} />;
         case 'schedule':
           return <EngineerSchedule engineerData={engineerData} />;
+        case 'gamification':
+            return <GamificationDashboard engineerName={engineerData ? engineerData.name : ''} />;
         case 'yearly_schedule':
           return <YearlySchedulePage userType={userType} engineerData={engineerData} managerData={managerData} />;
         case 'request':
