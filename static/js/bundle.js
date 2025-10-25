@@ -44,7 +44,10 @@ const AIRosterGenerator = ({ onUploadSuccess, addNotification }) => {
             CostCenter: emp.costCenter
         })));
         setRosterError(null);
-        addNotification(`Successfully uploaded ${file.name}.`, 'success');
+        addNotification(data.message, 'success');
+        if (data.roster) {
+            setGeneratedRoster(data.roster);
+        }
         if (onUploadSuccess) {
             onUploadSuccess();
         }
@@ -1505,6 +1508,7 @@ const Sidebar = ({ userType, uploadedFileName, activeView, onNavigate }) => {
     { name: 'AI Roster Generator', iconName: 'BrainCircuit', view: 'roster' },
     { name: 'Team Analytics', iconName: 'BarChart2', view: 'analytics' },
     { name: 'Schedule Manager', iconName: 'Calendar', view: 'schedule' },
+    { name: 'Yearly Schedule', iconName: 'CalendarDays', view: 'yearly_schedule' },
     { name: 'Leave Approvals', iconName: 'CheckSquare', view: 'approvals' },
     { name: 'Cab Requests', iconName: 'Car', view: 'cab_requests' },
   ];
@@ -1512,6 +1516,7 @@ const Sidebar = ({ userType, uploadedFileName, activeView, onNavigate }) => {
   const engineerLinks = [
     { name: 'Home', iconName: 'Briefcase', view: 'home' },
     { name: 'My Schedule', iconName: 'Calendar', view: 'schedule' },
+    { name: 'Yearly Schedule', iconName: 'CalendarDays', view: 'yearly_schedule' },
     { name: 'Request Swap/Leave', iconName: 'ArrowRightLeft', view: 'request' },
     { name: 'Cab Requests', iconName: 'Car', view: 'cab' },
     { name: 'My Performance', iconName: 'BarChart2', view: 'performance' },
@@ -1981,6 +1986,8 @@ const App = () => {
           return <TeamAnalytics managerData={managerData} />;
         case 'schedule':
           return <ScheduleManager managerData={managerData} />;
+        case 'yearly_schedule':
+          return <YearlySchedulePage userType={userType} engineerData={engineerData} managerData={managerData} />;
         case 'approvals':
           return <LeaveApprovalPage leaveRequests={leaveRequests} onUpdateRequest={handleLeaveRequestUpdate} />;
         case 'cab_requests':
@@ -1994,6 +2001,8 @@ const App = () => {
           return <EngineerDashboard engineerData={engineerData} isAiAgentActive={isAiAgentActive} handleSetAiAgentActive={handleSetAiAgentActive} onNavigate={handleNavigate} />;
         case 'schedule':
           return <EngineerSchedule engineerData={engineerData} />;
+        case 'yearly_schedule':
+          return <YearlySchedulePage userType={userType} engineerData={engineerData} managerData={managerData} />;
         case 'request':
           return <RequestPage handleSetAiAgentActive={handleSetAiAgentActive} engineerData={engineerData} leaveRequests={leaveRequests.filter(r => r.engineerName === engineerData.name)} onSubmit={handleLeaveRequestSubmit} addNotification={addNotification} />;
         case 'cab':
@@ -2036,3 +2045,88 @@ ReactDOM.render(
   </React.StrictMode>,
   container
 );
+const YearlySchedulePage = ({ userType, engineerData, managerData }) => {
+  const [year, setYear] = React.useState(new Date().getFullYear());
+  const [schedule, setSchedule] = React.useState(null);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    const fetchSchedule = async () => {
+      setLoading(true);
+      try {
+        const engineerName = userType === 'engineer' && engineerData ? engineerData.name : '';
+        const response = await fetch(`/api/yearly_schedule?year=${year}&engineerName=${engineerName}`);
+        if (!response.ok) throw new Error('Failed to fetch yearly schedule');
+        const data = await response.json();
+        setSchedule(data);
+      } catch (error) {
+        console.error("Error fetching yearly schedule:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchSchedule();
+  }, [year, userType, engineerData]);
+
+  const getShiftColor = (shift) => {
+    switch (shift) {
+        case 'Morning': return 'bg-blue-100 text-blue-800';
+        case 'Evening': return 'bg-indigo-100 text-indigo-800';
+        case 'Off': return 'bg-gray-200 text-gray-700';
+        default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const renderMonth = (month) => {
+    const monthDate = new Date(year, month, 1);
+    const monthName = monthDate.toLocaleString('default', { month: 'long' });
+    const firstDay = monthDate.getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+    const blanks = Array(firstDay).fill(null);
+    const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+
+    return (
+      <div key={month} className="bg-white p-4 rounded-lg shadow-md">
+        <h4 className="text-lg font-bold text-center mb-2">{monthName}</h4>
+        <div className="grid grid-cols-7 gap-1 text-center text-xs">
+          {["S", "M", "T", "W", "T", "F", "S"].map(d => <div key={d} className="font-semibold">{d}</div>)}
+          {blanks.map((_, i) => <div key={`blank-${i}`}></div>)}
+          {days.map(day => {
+            const shift = schedule && schedule[month] ? schedule[month][day] : null;
+            return (
+              <div key={day} className={`py-1 rounded ${shift ? getShiftColor(shift) : ''}`}>
+                {day}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
+  if (loading) {
+    return (
+      <div className="p-8 bg-gray-100 flex-1 flex justify-center items-center">
+        <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-8 bg-gray-100 flex-1">
+      <div className="max-w-7xl mx-auto">
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-3xl font-bold text-gray-800">Yearly Schedule for {year}</h1>
+          <div>
+            <button onClick={() => setYear(year - 1)} className="px-4 py-2 bg-white rounded-lg shadow-md mr-2">&lt;</button>
+            <button onClick={() => setYear(year + 1)} className="px-4 py-2 bg-white rounded-lg shadow-md">&gt;</button>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {Array.from({ length: 12 }, (_, i) => renderMonth(i))}
+        </div>
+      </div>
+    </div>
+  );
+};

@@ -41,6 +41,11 @@ employees_db = [
     { "name": 'Naresh', "role": 'DBA', "serviceNow": 7, "jira": 4, "csat": 95, "ticketsResolved": 11, "avgResolutionTime": 55, "leaveBalance": 20, "isAiAgentActive": False, "project": "Phoenix", "costCenter": "RND-101" },
 ]
 
+project_cost_centers = {
+    "Phoenix": ["RND-101", "RND-102"],
+    "Orion": ["OPS-202", "OPS-203"],
+}
+
 def log_to_file(message):
     with open("app.log", "a") as f:
         f.write(f"[{datetime.datetime.now()}] {message}\n")
@@ -406,6 +411,56 @@ def update_swap_request_status(request_id):
     log_to_file(f"Updated swap request {request_id} to status: {new_status}")
     return jsonify(request_to_update)
 
+# --- Yearly Schedule Endpoint ---
+
+@app.route('/api/yearly_schedule', methods=['GET'])
+def get_yearly_schedule():
+    year = request.args.get('year', default=datetime.datetime.now().year, type=int)
+    engineer_name = request.args.get('engineerName')
+
+    if not current_roster:
+        # If no roster is generated, return an empty schedule
+        return jsonify({})
+
+    yearly_schedule = {}
+    for month in range(12):
+        yearly_schedule[month] = {}
+        # Correctly calculate days in month
+        if month == 11: # December
+            days_in_month = 31
+        else:
+            days_in_month = (datetime.date(year, month + 2, 1) - datetime.timedelta(days=1)).day
+
+        for day in range(1, days_in_month + 1):
+            try:
+                current_date = datetime.date(year, month + 1, day)
+                day_name = current_date.strftime('%A') # e.g., "Monday"
+
+                shift_for_day = "Off" # Default to off
+
+                if day_name in current_roster:
+                    if engineer_name:
+                        # Find the shift for the specific engineer
+                        for shift, people in current_roster[day_name].items():
+                            if isinstance(people, list):
+                                if any(p.get('name') == engineer_name for p in people):
+                                    shift_for_day = shift
+                                    break
+                    else:
+                        # Provide a general summary if no engineer is specified
+                        # For simplicity, we'll just list the first shift found for that day.
+                        # A more complex UI might want all shifts.
+                        first_shift = next(iter(current_roster[day_name]), None)
+                        if first_shift:
+                            shift_for_day = first_shift
+
+                yearly_schedule[month][day] = shift_for_day
+            except ValueError:
+                # Handles cases like February 29 on a non-leap year
+                continue
+
+    return jsonify(yearly_schedule)
+
 # --- Analytics Endpoints ---
 
 @app.route('/api/analytics/team_averages', methods=['GET'])
@@ -489,6 +544,17 @@ def upload_employees():
 
             existing_employees_map = {emp['name']: emp for emp in employees_db}
 
+            for row_idx, row in enumerate(sheet.iter_rows(min_row=2, values_only=True), start=2):
+                new_emp_data = dict(zip(raw_headers, row))
+                project = new_emp_data.get(found_headers.get('project'))
+                cost_center = new_emp_data.get(found_headers.get('costCenter'))
+
+                if project and cost_center:
+                    if project not in project_cost_centers or cost_center not in project_cost_centers[project]:
+                        error_msg = f"Invalid cost center '{cost_center}' for project '{project}' on row {row_idx}."
+                        log_to_file(error_msg)
+                        return jsonify({"error": error_msg}), 400
+
             for row in sheet.iter_rows(min_row=2, values_only=True):
                 new_emp_data = dict(zip(raw_headers, row))
                 name = new_emp_data.get(found_headers['name'])
@@ -525,10 +591,27 @@ def upload_employees():
 
             employees_db = list(existing_employees_map.values())
             log_to_file(f"Successfully updated employees_db from {file.filename}")
+
+            # Automatically regenerate the roster
+            try:
+                global current_roster
+                prediction = roster_generator_instance.forward(members=employees_db, constraints="")
+                current_roster = prediction.roster
+                log_to_file(f"Automatically regenerated roster: {json.dumps(current_roster, indent=2)}")
+            except Exception as e:
+                log_to_file(f"Error regenerating roster: {e}")
+                # Still return success for the upload, but with a warning
+                return jsonify({
+                    "message": "Employee data updated, but failed to regenerate roster.",
+                    "fileName": file.filename,
+                    "employees": employees_db
+                }), 200
+
             return jsonify({
-                "message": "Employee data updated successfully",
+                "message": "Employee data updated and roster regenerated successfully",
                 "fileName": file.filename,
-                "employees": employees_db
+                "employees": employees_db,
+                "roster": current_roster
             }), 200
 
         except Exception as e:
