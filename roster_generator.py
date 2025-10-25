@@ -90,7 +90,12 @@ class RosterGenerator(dspy.Module):
                         if member['role'] in roles_on_shift:
                             score -= 1000 # Heavily penalize adding a duplicate role
 
-                        # 5. Penalize taking the same shift type too often
+                        # 5. Encourage project diversity on a shift
+                        projects_on_shift = [p.get('project') for p in roster[day][shift] if p.get('project')]
+                        if member.get('project') and member.get('project') not in projects_on_shift:
+                            score += 20 # Reward for adding a new project to the shift
+
+                        # 6. Penalize taking the same shift type too often
                         score -= wl['shiftCounts'][shift] * 5
 
                         if score > best_score:
@@ -98,7 +103,12 @@ class RosterGenerator(dspy.Module):
                             best_candidate = member
 
                     if best_candidate:
-                        roster[day][shift].append({'name': best_candidate['name'], 'role': best_candidate['role']})
+                        roster[day][shift].append({
+                            'name': best_candidate['name'],
+                            'role': best_candidate['role'],
+                            'project': best_candidate.get('project'),
+                            'costCenter': best_candidate.get('costCenter')
+                        })
                         assigned_today.append(best_candidate['name'])
 
                         # Update workload
@@ -122,11 +132,11 @@ if __name__ == '__main__':
 
     # Mock members and constraints
     mock_members = [
-        {'name': 'Rohit', 'role': 'Development'},
-        {'name': 'Keerthi', 'role': 'Operations'},
-        {'name': 'Naresh', 'role': 'DBA'},
-        {'name': 'Saanvi', 'role': 'Support'},
-        {'name': 'Amit', 'role': 'Development'},
+        {'name': 'Rohit', 'role': 'Development', 'project': 'Phoenix', 'costCenter': 'RND-101'},
+        {'name': 'Keerthi', 'role': 'Operations', 'project': 'Orion', 'costCenter': 'OPS-202'},
+        {'name': 'Naresh', 'role': 'DBA', 'project': 'Phoenix', 'costCenter': 'RND-101'},
+        {'name': 'Saanvi', 'role': 'Support', 'project': 'Orion', 'costCenter': 'OPS-202'},
+        {'name': 'Amit', 'role': 'Development', 'project': 'Phoenix', 'costCenter': 'RND-101'},
     ]
     mock_constraints = "Keerthi needs Saturday off"
 

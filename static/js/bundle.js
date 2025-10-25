@@ -37,7 +37,12 @@ const AIRosterGenerator = ({ onUploadSuccess, addNotification }) => {
             throw new Error(data.error || `HTTP error! status: ${response.status}`);
         }
 
-        setMembers(data.employees.map(emp => ({ Name: emp.name, Role: emp.role })));
+        setMembers(data.employees.map(emp => ({
+            Name: emp.name,
+            Role: emp.role,
+            Project: emp.project,
+            CostCenter: emp.costCenter
+        })));
         setRosterError(null);
         addNotification(`Successfully uploaded ${file.name}.`, 'success');
         if (onUploadSuccess) {
@@ -88,7 +93,7 @@ const AIRosterGenerator = ({ onUploadSuccess, addNotification }) => {
   const excelUploadSection = (
     <div className="bg-blue-50 border-l-4 border-blue-500 p-6 rounded-r-lg mb-8">
         <h2 className="text-xl font-bold text-gray-800 mb-2">Upload Employee Roster</h2>
-        <p className="text-gray-600 mb-4">Upload an Excel file (.xlsx, .xls) with an "Employees" sheet. Required columns: <strong>Name</strong> and <strong>Role</strong>.</p>
+        <p className="text-gray-600 mb-4">Upload an Excel file (.xlsx, .xls) with an "Employees" sheet. Required columns: <strong>Name</strong>, <strong>Role</strong>, <strong>Project</strong>, and <strong>Cost Center</strong>.</p>
         <div className="flex items-center space-x-4">
             <label className="file-input-button bg-blue-500 text-white px-4 py-2 rounded-lg cursor-pointer hover:bg-blue-600 inline-flex items-center">
                 {Icon('Upload', {size: 20, className: 'mr-2'})}
@@ -115,10 +120,12 @@ const AIRosterGenerator = ({ onUploadSuccess, addNotification }) => {
             <thead className="bg-gray-50">
                 <tr>
                     <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Day</th>
-                    <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Morning</th>
-                    <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Afternoon</th>
-                    <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Evening</th>
-                    <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Night</th>
+                    {["Morning", "Afternoon", "Evening", "Night"].map(shift => (
+                        <React.Fragment key={shift}>
+                            <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{shift}</th>
+                            <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Project</th>
+                        </React.Fragment>
+                    ))}
                     <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Off</th>
                 </tr>
             </thead>
@@ -127,13 +134,20 @@ const AIRosterGenerator = ({ onUploadSuccess, addNotification }) => {
                     <tr key={day}>
                         <td className="py-4 px-4 whitespace-nowrap font-medium text-gray-900">{day}</td>
                         {["Morning", "Afternoon", "Evening", "Night"].map(shift => (
-                            <td key={shift} className="py-4 px-4 whitespace-nowrap text-gray-600 space-y-1">
-                                {shifts[shift] && shifts[shift].map(person => (
-                                    <div key={person.name} className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getRoleColor(person.role)}`}>
-                                        {person.name}
-                                    </div>
-                                ))}
-                            </td>
+                            <React.Fragment key={shift}>
+                                <td className="py-4 px-4 whitespace-nowrap text-gray-600 space-y-1">
+                                    {shifts[shift] && shifts[shift].map(person => (
+                                        <div key={person.name} className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getRoleColor(person.role)}`}>
+                                            {person.name}
+                                        </div>
+                                    ))}
+                                </td>
+                                <td className="py-4 px-4 whitespace-nowrap text-gray-600 space-y-1">
+                                    {shifts[shift] && shifts[shift].map(person => (
+                                        <div key={person.name} className="text-xs text-gray-600">{person.project}</div>
+                                    ))}
+                                </td>
+                            </React.Fragment>
                         ))}
                         <td className="py-4 px-4 whitespace-nowrap text-gray-600"><span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">{shifts.Off}</span></td>
                     </tr>
@@ -841,7 +855,11 @@ const RequestPage = ({ handleSetAiAgentActive, engineerData, leaveRequests, onSu
   const handleLocalLeaveSubmit = (e) => {
     e.preventDefault();
     if (!startDate || !endDate) {
-      alert('Please select a start and end date.');
+      addNotification('Please select a start and end date.', 'warning');
+      return;
+    }
+    if (new Date(endDate) < new Date(startDate)) {
+      addNotification('End date cannot be before start date.', 'warning');
       return;
     }
     onSubmit({
@@ -1012,6 +1030,180 @@ const RequestPage = ({ handleSetAiAgentActive, engineerData, leaveRequests, onSu
             addNotification={addNotification}
             onSwapRequestSubmit={handleSwapRequestSubmit}
         />
+    </div>
+  );
+};
+const CabRequestPage = ({ engineerData, addNotification }) => {
+  const [cabRequests, setCabRequests] = React.useState([]);
+  const [shift, setShift] = React.useState('Morning');
+  const [date, setDate] = React.useState('');
+
+  React.useEffect(() => {
+    if (engineerData && engineerData.name) {
+      const fetchCabRequests = async () => {
+        try {
+          const response = await fetch(`/api/cab_requests?engineerName=${engineerData.name}`);
+          if (!response.ok) throw new Error('Failed to fetch cab requests');
+          const requests = await response.json();
+          setCabRequests(requests);
+        } catch (error) {
+          addNotification(error.message, 'error');
+        }
+      };
+      fetchCabRequests();
+    }
+  }, [engineerData]);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!date || !shift) {
+      addNotification('Please select a date and shift.', 'warning');
+      return;
+    }
+    try {
+      const response = await fetch('/api/cab_requests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          engineerName: engineerData.name,
+          date,
+          shift,
+        }),
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to submit cab request');
+      }
+      const newRequest = await response.json();
+      setCabRequests(prev => [...prev, newRequest]);
+      addNotification('Cab request submitted successfully!', 'success');
+      setDate('');
+      setShift('Morning');
+    } catch (error) {
+      addNotification(error.message, 'error');
+    }
+  };
+
+  return (
+    <div className="p-8 bg-gray-100 flex-1">
+      <div className="max-w-4xl mx-auto">
+        <h1 className="text-3xl font-bold text-gray-800 mb-6">Cab Requests</h1>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <DashboardCard>
+            <h3 className="font-bold text-xl mb-4 text-gray-800">Request a Cab</h3>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label htmlFor="date" className="block text-sm font-medium text-gray-700">Date</label>
+                <input type="date" id="date" value={date} onChange={e => setDate(e.target.value)} className="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2" />
+              </div>
+              <div>
+                <label htmlFor="shift" className="block text-sm font-medium text-gray-700">Shift</label>
+                <select id="shift" value={shift} onChange={e => setShift(e.target.value)} className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md">
+                  <option>Morning</option>
+                  <option>Afternoon</option>
+                  <option>Evening</option>
+                  <option>Night</option>
+                </select>
+              </div>
+              <div>
+                <button type="submit" className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                  Submit Request
+                </button>
+              </div>
+            </form>
+          </DashboardCard>
+          <DashboardCard>
+            <h3 className="font-bold text-xl mb-4 text-gray-800">My Cab Requests</h3>
+            <div className="space-y-3">
+              {cabRequests.length > 0 ? (
+                cabRequests.map(req => (
+                  <div key={req.id} className="bg-gray-50 p-3 rounded-lg flex items-center justify-between">
+                    <div>
+                      <p className="font-bold">{req.date}</p>
+                      <p className="text-sm text-gray-600">{req.shift} Shift</p>
+                    </div>
+                    <span className={`px-3 py-1 text-sm font-semibold rounded-full ${req.status === 'Approved' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                      {req.status}
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <p className="text-gray-500">You have no past cab requests.</p>
+              )}
+            </div>
+          </DashboardCard>
+        </div>
+      </div>
+    </div>
+  );
+};
+const CabRequestApprovalPage = ({ addNotification }) => {
+  const [cabRequests, setCabRequests] = React.useState([]);
+
+  React.useEffect(() => {
+    const fetchCabRequests = async () => {
+      try {
+        const response = await fetch('/api/cab_requests/all');
+        if (!response.ok) throw new Error('Failed to fetch cab requests');
+        const requests = await response.json();
+        setCabRequests(requests);
+      } catch (error) {
+        addNotification(error.message, 'error');
+      }
+    };
+    fetchCabRequests();
+  }, []);
+
+  const handleUpdateRequest = async (requestId, status) => {
+    try {
+      const response = await fetch(`/api/cab_requests/${requestId}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      });
+      if (!response.ok) {
+        throw new Error('Failed to update cab request');
+      }
+      const updatedRequest = await response.json();
+      setCabRequests(prev =>
+        prev.map(req => (req.id === requestId ? updatedRequest : req))
+      );
+      addNotification(`Request ${status.toLowerCase()}.`, 'success');
+    } catch (error) {
+      addNotification(error.message, 'error');
+    }
+  };
+
+  return (
+    <div className="p-8 bg-gray-100">
+      <DashboardCard>
+        <h2 className="text-2xl font-bold text-gray-800 mb-6">Cab Requests for Approval</h2>
+        <div className="space-y-4">
+          {cabRequests.length > 0 ? (
+            cabRequests.map(req => (
+              <div key={req.id} className="bg-gray-50 p-4 rounded-lg flex items-center justify-between">
+                <div>
+                  <p className="font-bold">{req.engineerName}</p>
+                  <p className="text-sm text-gray-600">{req.date} - {req.shift} Shift</p>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <span className={`px-3 py-1 text-sm font-semibold rounded-full ${req.status === 'Approved' ? 'bg-green-100 text-green-800' : (req.status === 'Rejected' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800')}`}>
+                    {req.status}
+                  </span>
+                  {req.status === 'Pending' && (
+                    <React.Fragment>
+                      <button onClick={() => handleUpdateRequest(req.id, 'Approved')} className="bg-green-500 text-white px-3 py-1 rounded-md hover:bg-green-600">Approve</button>
+                      <button onClick={() => handleUpdateRequest(req.id, 'Rejected')} className="bg-red-500 text-white px-3 py-1 rounded-md hover:bg-red-600">Reject</button>
+                    </React.Fragment>
+                  )}
+                </div>
+              </div>
+            ))
+          ) : (
+            <p className="text-gray-500">No pending cab requests.</p>
+          )}
+        </div>
+      </DashboardCard>
     </div>
   );
 };
@@ -1195,10 +1387,24 @@ const MyPerformancePage = ({ engineerData }) => {
     return <div className="p-8">Loading performance data...</div>;
   }
 
-  const { name, ticketsResolved, avgResolutionTime, csat, myKudos } = engineerData;
+  const { name, ticketsResolved, avgResolutionTime, csat, myKudos, project, costCenter } = engineerData;
 
   const kpiCards = (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <DashboardCard>
+            <div className="flex items-center justify-between mb-2">
+                <h4 className="font-semibold text-gray-600">Project</h4>
+                {Icon('Briefcase', {className: "text-purple-500", size: 24})}
+            </div>
+            <p className="text-4xl font-bold text-gray-800">{project || 'N/A'}</p>
+        </DashboardCard>
+        <DashboardCard>
+            <div className="flex items-center justify-between mb-2">
+                <h4 className="font-semibold text-gray-600">Cost Center</h4>
+                {Icon('DollarSign', {className: "text-yellow-500", size: 24})}
+            </div>
+            <p className="text-4xl font-bold text-gray-800">{costCenter || 'N/A'}</p>
+        </DashboardCard>
         <DashboardCard>
             <div className="flex items-center justify-between mb-2">
                 <h4 className="font-semibold text-gray-600">Tickets Resolved</h4>
@@ -1226,9 +1432,9 @@ const MyPerformancePage = ({ engineerData }) => {
   const { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } = Recharts;
 
   const comparisonData = teamAverages ? [
-    { name: 'Tickets Resolved', You: ticketsResolved, Team: teamAverages.avg_tickets_resolved },
-    { name: 'Resolution Time (min)', You: avgResolutionTime, Team: teamAverages.avg_resolution_time },
-    { name: 'CSAT (%)', You: csat, Team: teamAverages.avg_csat },
+    { name: 'Tickets Resolved', You: ticketsResolved, Team: teamAverages.avg_tickets_resolved, Project: project, CostCenter: costCenter },
+    { name: 'Resolution Time (min)', You: avgResolutionTime, Team: teamAverages.avg_resolution_time, Project: project, CostCenter: costCenter },
+    { name: 'CSAT (%)', You: csat, Team: teamAverages.avg_csat, Project: project, CostCenter: costCenter },
   ] : [];
 
   const comparisonChart = (
@@ -1300,12 +1506,14 @@ const Sidebar = ({ userType, uploadedFileName, activeView, onNavigate }) => {
     { name: 'Team Analytics', iconName: 'BarChart2', view: 'analytics' },
     { name: 'Schedule Manager', iconName: 'Calendar', view: 'schedule' },
     { name: 'Leave Approvals', iconName: 'CheckSquare', view: 'approvals' },
+    { name: 'Cab Requests', iconName: 'Car', view: 'cab_requests' },
   ];
 
   const engineerLinks = [
     { name: 'Home', iconName: 'Briefcase', view: 'home' },
     { name: 'My Schedule', iconName: 'Calendar', view: 'schedule' },
     { name: 'Request Swap/Leave', iconName: 'ArrowRightLeft', view: 'request' },
+    { name: 'Cab Requests', iconName: 'Car', view: 'cab' },
     { name: 'My Performance', iconName: 'BarChart2', view: 'performance' },
   ];
 
@@ -1423,6 +1631,8 @@ const TeamAnalytics = ({ managerData }) => {
                 <thead className="border-b">
                     <tr>
                         <th className="py-2 px-4 text-left text-sm font-medium text-gray-500">Engineer</th>
+                        <th className="py-2 px-4 text-left text-sm font-medium text-gray-500">Project</th>
+                        <th className="py-2 px-4 text-left text-sm font-medium text-gray-500">Cost Center</th>
                         <th className="py-2 px-4 text-left text-sm font-medium text-gray-500">Tickets Resolved</th>
                         <th className="py-2 px-4 text-left text-sm font-medium text-gray-500">Avg. Resolution (min)</th>
                         <th className="py-2 px-4 text-left text-sm font-medium text-gray-500">CSAT</th>
@@ -1436,6 +1646,8 @@ const TeamAnalytics = ({ managerData }) => {
                                 {index === 1 && Icon("Star", {size: 16, className: "text-gray-400 mr-2"})}
                                 {eng.name}
                             </td>
+                            <td className="py-3 px-4 text-gray-600">{eng.project || 'N/A'}</td>
+                            <td className="py-3 px-4 text-gray-600">{eng.costCenter || 'N/A'}</td>
                             <td className="py-3 px-4 text-gray-600">{eng.ticketsResolved || 'N/A'}</td>
                             <td className="py-3 px-4 text-gray-600">{eng.avgResolutionTime || 'N/A'}</td>
                             <td className={`py-3 px-4 font-semibold ${eng.csat > 95 ? 'text-green-600' : 'text-orange-500'}`}>{eng.csat || 'N/A'}%</td>
@@ -1559,9 +1771,9 @@ const App = () => {
         upcomingLeave: [ { name: 'Rohit', days: 3 } ]
     },
     teamTickets: [
-        { name: 'Rohit', role: 'Development', serviceNow: 5, jira: 8, csat: 92, ticketsResolved: 13, avgResolutionTime: 45 },
-        { name: 'Keerthi', role: 'Operations', serviceNow: 3, jira: 12, csat: 98, ticketsResolved: 15, avgResolutionTime: 30 },
-        { name: 'Naresh', role: 'DBA', serviceNow: 7, jira: 4, csat: 95, ticketsResolved: 11, avgResolutionTime: 55 },
+        { name: 'Rohit', role: 'Development', serviceNow: 5, jira: 8, csat: 92, ticketsResolved: 13, avgResolutionTime: 45, project: 'Phoenix', costCenter: 'RND-101' },
+        { name: 'Keerthi', role: 'Operations', serviceNow: 3, jira: 12, csat: 98, ticketsResolved: 15, avgResolutionTime: 30, project: 'Orion', costCenter: 'OPS-202' },
+        { name: 'Naresh', role: 'DBA', serviceNow: 7, jira: 4, csat: 95, ticketsResolved: 11, avgResolutionTime: 55, project: 'Phoenix', costCenter: 'RND-101' },
     ],
     analytics: {
         last30Days: {
@@ -1583,6 +1795,8 @@ const App = () => {
   };
   const initialEngineerData = {
       name: 'Rohit',
+      project: 'Phoenix',
+      costCenter: 'RND-101',
       personalPulse: { currentShift: 'Morning', workload: 65, tasksCompleted: 5, tasksPending: 3 },
       weekAhead: [
           { day: 'Mon', shift: 'Morning' }, { day: 'Tue', shift: 'Morning' }, { day: 'Wed', shift: 'Evening' },
@@ -1769,6 +1983,8 @@ const App = () => {
           return <ScheduleManager managerData={managerData} />;
         case 'approvals':
           return <LeaveApprovalPage leaveRequests={leaveRequests} onUpdateRequest={handleLeaveRequestUpdate} />;
+        case 'cab_requests':
+          return <CabRequestApprovalPage addNotification={addNotification} />;
         default:
           return <div className="p-8">Page not yet implemented: {view}</div>;
       }
@@ -1780,6 +1996,8 @@ const App = () => {
           return <EngineerSchedule engineerData={engineerData} />;
         case 'request':
           return <RequestPage handleSetAiAgentActive={handleSetAiAgentActive} engineerData={engineerData} leaveRequests={leaveRequests.filter(r => r.engineerName === engineerData.name)} onSubmit={handleLeaveRequestSubmit} addNotification={addNotification} />;
+        case 'cab':
+          return <CabRequestPage engineerData={engineerData} addNotification={addNotification} />;
         case 'performance':
           return <MyPerformancePage engineerData={engineerData} />;
         default:

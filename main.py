@@ -1,4 +1,5 @@
 from flask import Flask, render_template, request, jsonify
+from flask_talisman import Talisman
 from roster_generator import RosterGenerator
 import json
 import datetime
@@ -6,6 +7,7 @@ from datetime import timedelta
 import openpyxl
 
 app = Flask(__name__)
+Talisman(app)
 
 # It's better to create a single instance of the generator
 roster_generator_instance = RosterGenerator()
@@ -15,9 +17,9 @@ current_roster = {}
 
 # In-memory data store for employees
 employees_db = [
-    { "name": 'Rohit', "role": 'Development', "serviceNow": 5, "jira": 8, "csat": 92, "ticketsResolved": 13, "avgResolutionTime": 45, "leaveBalance": 20, "isAiAgentActive": False },
-    { "name": 'Keerthi', "role": 'Operations', "serviceNow": 3, "jira": 12, "csat": 98, "ticketsResolved": 15, "avgResolutionTime": 30, "leaveBalance": 20, "isAiAgentActive": False },
-    { "name": 'Naresh', "role": 'DBA', "serviceNow": 7, "jira": 4, "csat": 95, "ticketsResolved": 11, "avgResolutionTime": 55, "leaveBalance": 20, "isAiAgentActive": False },
+    { "name": 'Rohit', "role": 'Development', "serviceNow": 5, "jira": 8, "csat": 92, "ticketsResolved": 13, "avgResolutionTime": 45, "leaveBalance": 20, "isAiAgentActive": False, "project": "Phoenix", "costCenter": "RND-101" },
+    { "name": 'Keerthi', "role": 'Operations', "serviceNow": 3, "jira": 12, "csat": 98, "ticketsResolved": 15, "avgResolutionTime": 30, "leaveBalance": 20, "isAiAgentActive": False, "project": "Orion", "costCenter": "OPS-202" },
+    { "name": 'Naresh', "role": 'DBA', "serviceNow": 7, "jira": 4, "csat": 95, "ticketsResolved": 11, "avgResolutionTime": 55, "leaveBalance": 20, "isAiAgentActive": False, "project": "Phoenix", "costCenter": "RND-101" },
 ]
 
 def log_to_file(message):
@@ -120,6 +122,14 @@ def create_leave_request():
     if not data or 'engineerName' not in data or 'startDate' not in data or 'endDate' not in data:
         return jsonify({"error": "Missing required fields for leave request"}), 400
 
+    try:
+        start_date = datetime.datetime.strptime(data['startDate'], '%Y-%m-%d')
+        end_date = datetime.datetime.strptime(data['endDate'], '%Y-%m-%d')
+        if end_date < start_date:
+            return jsonify({"error": "End date cannot be before start date"}), 400
+    except ValueError:
+        return jsonify({"error": "Invalid date format. Please use YYYY-MM-DD"}), 400
+
     request_id_counter += 1
     new_request = {
         "id": request_id_counter,
@@ -210,6 +220,73 @@ def update_leave_request_status(request_id):
 
     return jsonify(response_data)
 
+# --- Cab Request Endpoints ---
+cab_requests_db = []
+cab_request_id_counter = 0
+
+@app.route('/api/cab_requests', methods=['GET'])
+def get_cab_requests():
+    engineer_name = request.args.get('engineerName')
+    if not engineer_name:
+        return jsonify({"error": "Missing engineerName query parameter"}), 400
+
+    relevant_requests = [
+        req for req in cab_requests_db
+        if req['engineerName'] == engineer_name
+    ]
+    log_to_file(f"Fetched {len(relevant_requests)} cab requests for {engineer_name}")
+    return jsonify(relevant_requests)
+
+@app.route('/api/cab_requests', methods=['POST'])
+def create_cab_request():
+    global cab_request_id_counter
+    log_to_file("Create cab request route was hit.")
+    data = request.get_json()
+    required_fields = ['engineerName', 'date', 'shift']
+    if not all(field in data for field in required_fields):
+        return jsonify({"error": "Missing required fields for cab request"}), 400
+
+    try:
+        datetime.datetime.strptime(data['date'], '%Y-%m-%d')
+    except ValueError:
+        return jsonify({"error": "Invalid date format. Please use YYYY-MM-DD"}), 400
+
+    cab_request_id_counter += 1
+    new_request = {
+        "id": cab_request_id_counter,
+        "engineerName": data['engineerName'],
+        "date": data['date'],
+        "shift": data['shift'],
+        "status": "Pending" # Status: Pending, Approved, Rejected
+    }
+    cab_requests_db.append(new_request)
+    log_to_file(f"Created new cab request: {json.dumps(new_request, indent=2)}")
+    return jsonify(new_request), 201
+
+@app.route('/api/cab_requests/all', methods=['GET'])
+def get_all_cab_requests():
+    log_to_file("Get all cab requests route was hit.")
+    return jsonify(cab_requests_db)
+
+@app.route('/api/cab_requests/<int:request_id>/status', methods=['PUT'])
+def update_cab_request_status(request_id):
+    log_to_file(f"Update cab request status route was hit for request ID: {request_id}")
+    data = request.get_json()
+    if not data or 'status' not in data:
+        return jsonify({"error": "Missing 'status' in request body"}), 400
+
+    new_status = data['status']
+    if new_status not in ['Approved', 'Rejected']:
+        return jsonify({"error": "Invalid status value"}), 400
+
+    request_to_update = next((req for req in cab_requests_db if req['id'] == request_id), None)
+
+    if not request_to_update:
+        return jsonify({"error": "Cab request not found"}), 404
+
+    request_to_update['status'] = new_status
+    log_to_file(f"Updated cab request {request_id} to status: {new_status}")
+    return jsonify(request_to_update)
 # --- Shift Swap Endpoints ---
 
 # In-memory data store for swap requests
@@ -370,6 +447,8 @@ def upload_employees():
             header_map = {
                 'name': ['name', 'employee name', 'engineer'],
                 'role': ['role', 'job title'],
+                'project': ['project'],
+                'costCenter': ['costcenter', 'cost center'],
                 'serviceNow': ['servicenow', 'service now', 'sn'],
                 'jira': ['jira', 'jira tickets'],
                 'csat': ['csat', 'customer satisfaction'],
@@ -402,6 +481,8 @@ def upload_employees():
                     # Update existing employee
                     emp = existing_employees_map[name]
                     emp['role'] = new_emp_data.get(found_headers.get('role'), emp['role'])
+                    emp['project'] = new_emp_data.get(found_headers.get('project'), emp.get('project'))
+                    emp['costCenter'] = new_emp_data.get(found_headers.get('costCenter'), emp.get('costCenter'))
                     emp['serviceNow'] = safe_int_conversion(new_emp_data.get(found_headers.get('serviceNow')), emp['serviceNow'])
                     emp['jira'] = safe_int_conversion(new_emp_data.get(found_headers.get('jira')), emp['jira'])
                     emp['csat'] = safe_int_conversion(new_emp_data.get(found_headers.get('csat')), emp['csat'])
@@ -412,6 +493,8 @@ def upload_employees():
                     existing_employees_map[name] = {
                         "name": name,
                         "role": new_emp_data.get(found_headers.get('role')),
+                        "project": new_emp_data.get(found_headers.get('project')),
+                        "costCenter": new_emp_data.get(found_headers.get('costCenter')),
                         "serviceNow": safe_int_conversion(new_emp_data.get(found_headers.get('serviceNow'))),
                         "jira": safe_int_conversion(new_emp_data.get(found_headers.get('jira'))),
                         "csat": safe_int_conversion(new_emp_data.get(found_headers.get('csat'))),
