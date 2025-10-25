@@ -1,3 +1,162 @@
+const KpiCards = ({ kpis }) => {
+  const kpiData = [
+    { title: 'Kpi Adherence', value: `${kpis.kpiAdherence}%`, color: 'bg-green-500' },
+    { title: 'Staffing Level', value: `${kpis.staffingLevel}%`, color: 'bg-blue-500' },
+    { title: 'Team Workload', value: `${kpis.teamWorkload}%`, color: 'bg-orange-500' },
+    { title: 'Burnout Risk', value: `${kpis.burnoutRisk}%`, color: 'bg-red-500' },
+  ];
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      {kpiData.map((kpi, index) => (
+        <div key={index} className="bg-white p-6 rounded-lg shadow-md">
+          <h3 className="text-lg font-semibold text-gray-600">{kpi.title}</h3>
+          <p className="text-4xl font-bold text-gray-800 my-2">{kpi.value}</p>
+          <div className="w-full bg-gray-200 rounded-full h-2.5">
+            <div className={`${kpi.color} h-2.5 rounded-full`} style={{ width: kpi.value }}></div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+const FutureCastRadar = ({ alerts }) => {
+  const alertColors = {
+    'High Ticket Volume Predicted': 'border-red-500',
+    'Burnout Forecast': 'border-orange-500',
+    'Skill Mismatch': 'border-blue-500',
+  };
+
+  return (
+    <div className="bg-white p-6 rounded-lg shadow-md mt-6">
+      <h3 className="text-xl font-bold text-gray-800 mb-4">Future-Cast Radar (Next 72 Hours)</h3>
+      <div className="space-y-4">
+        {alerts.map(alert => (
+          <div key={alert.id} className={`p-4 rounded-lg border-l-4 ${alertColors[alert.type] || 'border-gray-500'}`}>
+            <p className="font-bold text-gray-700">{alert.type}</p>
+            <p className="text-gray-600 my-1">{alert.message}</p>
+            <div className="flex justify-between items-center mt-2">
+              <span className="text-blue-600 font-semibold">{alert.action}</span>
+              <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                Take Action
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const TeamWellness = ({ wellnessData }) => {
+  const { shiftFairnessScore, kudos, upcomingTimeOff } = wellnessData;
+
+  return (
+    <div className="bg-white p-6 rounded-lg shadow-md mt-6">
+      <h3 className="text-xl font-bold text-gray-800 mb-4">Team Wellness & Engagement</h3>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Shift Fairness Score */}
+        <div className="text-center">
+          <p className="text-gray-600 font-semibold">Shift Fairness Score</p>
+          <p className="text-6xl font-bold text-green-500 my-2">{shiftFairnessScore}</p>
+          <p className="text-sm text-gray-500">Based on weekend & evening shift distribution.</p>
+        </div>
+
+        {/* Kudos Corner */}
+        <div>
+          <p className="text-gray-600 font-semibold mb-2">Kudos Corner</p>
+          <div className="space-y-2">
+            {kudos.map((kudo, index) => (
+              <div key={index} className="bg-yellow-100 p-3 rounded-lg">
+                <p className="text-sm text-gray-800">
+                  <span className="font-bold">{kudo.from} to {kudo.to}:</span> {kudo.message}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Upcoming Time Off */}
+        <div>
+          <p className="text-gray-600 font-semibold mb-2">Upcoming Time Off</p>
+          <div className="space-y-2">
+            {upcomingTimeOff.map((leave, index) => (
+              <div key={index} className="flex items-center space-x-2">
+                <i className="lucide-calendar-off text-gray-500"></i>
+                <p className="text-sm text-gray-700">{leave.name}'s vacation starts in {leave.daysUntil} days!</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const DashboardPage = () => {
+  const [kpis, setKpis] = React.useState(null);
+  const [alerts, setAlerts] = React.useState(null);
+  const [wellnessData, setWellnessData] = React.useState(null);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState(null);
+
+  React.useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const [kpisRes, alertsRes, wellnessRes] = await Promise.all([
+          fetch('/api/dashboard/kpis'),
+          fetch('/api/dashboard/radar'),
+          fetch('/api/dashboard/wellness')
+        ]);
+
+        if (!kpisRes.ok || !alertsRes.ok || !wellnessRes.ok) {
+          throw new Error('Failed to fetch dashboard data');
+        }
+
+        const kpisData = await kpisRes.json();
+        const alertsData = await alertsRes.json();
+        const wellnessData = await wellnessRes.json();
+
+        setKpis(kpisData);
+        setAlerts(alertsData);
+        setWellnessData(wellnessData);
+        setError(null);
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  if (loading) {
+    return <div className="text-center p-8">Loading dashboard...</div>;
+  }
+
+  if (error) {
+    return <div className="text-center p-8 text-red-500">Error: {error}</div>;
+  }
+
+  return (
+    <div className="p-8 bg-gray-50 min-h-full">
+      <h1 className="text-3xl font-bold text-gray-800 mb-6">Manager's Command Center</h1>
+      {kpis && <KpiCards kpis={kpis} />}
+      <div className="lg:flex lg:space-x-6 mt-6">
+        <div className="lg:w-2/3">
+          {alerts && <FutureCastRadar alerts={alerts} />}
+        </div>
+        <div className="lg:w-1/3">
+          {wellnessData && <TeamWellness wellnessData={wellnessData} />}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const AIRosterGenerator = ({ onUploadSuccess, addNotification }) => {
   const [isRosterLoading, setIsRosterLoading] = React.useState(false);
   const [rosterError, setRosterError] = React.useState(null);

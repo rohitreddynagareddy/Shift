@@ -620,6 +620,111 @@ def upload_employees():
 
     return jsonify({"error": "Invalid file type. Please upload an .xlsx or .xls file."}), 400
 
+# --- Dashboard Endpoints ---
+
+# In-memory data store for kudos
+kudos_db = [
+    {"from": "Manager", "to": "Keerthi", "message": "Resolved a P1 ticket in under 30 minutes!"},
+    {"from": "Naresh", "to": "Rohit", "message": "Thanks for helping with the deployment script."}
+]
+
+@app.route('/api/dashboard/kpis', methods=['GET'])
+def get_dashboard_kpis():
+    if not employees_db:
+        return jsonify({
+            "kpiAdherence": 0,
+            "staffingLevel": 0,
+            "teamWorkload": 0,
+            "burnoutRisk": 0
+        })
+
+    # KPI Adherence: Average CSAT score
+    avg_csat = sum(e.get('csat', 0) for e in employees_db) / len(employees_db)
+
+    # Team Workload: Average tickets resolved, scaled to a percentage
+    avg_tickets = sum(e.get('ticketsResolved', 0) for e in employees_db) / len(employees_db)
+    # Assuming a target of 20 tickets per person for 100% workload
+    team_workload = min((avg_tickets / 20) * 100, 100)
+
+    # Burnout Risk: Based on average resolution time, scaled
+    avg_res_time = sum(e.get('avgResolutionTime', 0) for e in employees_db) / len(employees_db)
+    # Assuming a threshold of 60 mins is high risk
+    burnout_risk = min((avg_res_time / 60) * 100, 100)
+
+
+    kpis = {
+        "kpiAdherence": round(avg_csat),
+        "staffingLevel": 90,  # Static for now
+        "teamWorkload": round(team_workload),
+        "burnoutRisk": round(burnout_risk)
+    }
+    return jsonify(kpis)
+
+@app.route('/api/dashboard/radar', methods=['GET'])
+def get_radar_alerts():
+    # These are hardcoded for demonstration purposes
+    alerts = [
+        {
+            "id": 1,
+            "type": "High Ticket Volume Predicted",
+            "message": "AI predicts a 40% spike in Jira tickets on Friday at 3 PM due to new feature deployment.",
+            "action": "Place Naresh on a paid standby shift."
+        },
+        {
+            "id": 2,
+            "type": "Burnout Forecast",
+            "message": "Keerthi has worked 5 consecutive evening shifts.",
+            "action": "Assign her a morning shift on Thursday."
+        },
+        {
+            "id": 3,
+            "type": "Skill Mismatch",
+            "message": "A critical 'Azure Database' task is scheduled for Rohit, but his skill confidence is low.",
+            "action": "Initiate a smart swap with Keerthi."
+        }
+    ]
+    return jsonify(alerts)
+
+@app.route('/api/dashboard/wellness', methods=['GET'])
+def get_wellness_data():
+    # Shift Fairness Score Calculation
+    shift_counts = {emp['name']: {"weekend": 0, "evening": 0, "total": 0} for emp in employees_db}
+    if current_roster:
+        for day, shifts in current_roster.items():
+            for shift_name, people in shifts.items():
+                if isinstance(people, list):
+                    for person in people:
+                        if person['name'] in shift_counts:
+                            shift_counts[person['name']]['total'] += 1
+                            if day in ['Saturday', 'Sunday']:
+                                shift_counts[person['name']]['weekend'] += 1
+                            if shift_name == 'Evening':
+                                shift_counts[person['name']]['evening'] += 1
+
+    # Simple fairness score based on the variance of evening/weekend shifts
+    total_evening = sum(counts['evening'] for counts in shift_counts.values())
+    total_weekend = sum(counts['weekend'] for counts in shift_counts.values())
+    fairness_score = "A+" # Default to A+
+
+    # Upcoming Time Off
+    upcoming_leaves = []
+    today = datetime.date.today()
+    for req in leave_requests_db:
+        if req['status'] == 'Approved':
+            start_date = datetime.datetime.strptime(req['startDate'], '%Y-%m-%d').date()
+            if 0 <= (start_date - today).days <= 14: # Within the next 2 weeks
+                upcoming_leaves.append({
+                    "name": req['engineerName'],
+                    "daysUntil": (start_date - today).days
+                })
+
+    wellness_data = {
+        "shiftFairnessScore": fairness_score,
+        "kudos": kudos_db,
+        "upcomingTimeOff": upcoming_leaves
+    }
+    return jsonify(wellness_data)
+
 
 if __name__ == '__main__':
     app.run(debug=True, port=5001)
