@@ -16,14 +16,13 @@ const Sidebar = ({ userType, uploadedFileName, activeView, onNavigate }) => {
     { name: 'AI Roster Generator', iconName: 'BrainCircuit', view: 'roster' },
     { name: 'Team Analytics', iconName: 'BarChart2', view: 'analytics' },
     { name: 'Schedule Manager', iconName: 'Calendar', view: 'schedule' },
-    { name: 'Leaderboard', iconName: 'Trophy', view: 'leaderboard' },
+    { name: 'Gamification', iconName: 'Star', view: 'gamification' },
   ];
 
   const engineerLinks = [
     { name: 'Home', iconName: 'Briefcase', view: 'home' },
     { name: 'My Schedule', iconName: 'Calendar', view: 'schedule' },
     { name: 'Gamification', iconName: 'Star', view: 'gamification' },
-    { name: 'Leaderboard', iconName: 'Trophy', view: 'leaderboard' },
     { name: 'Request Swap/Leave', iconName: 'ArrowRightLeft', view: 'request' },
     { name: 'My Performance', iconName: 'BarChart2', view: 'performance' },
   ];

@@ -108,6 +108,8 @@ const App = () => {
         case 'schedule':
            // Passing employees to schedule manager
           return <ScheduleManager managerData={{ teamTickets: employees }} />;
+        case 'gamification':
+          return <ManagerGamificationPage employees={employees} />;
         case 'leaderboard':
           return <Leaderboard />;
         default:
