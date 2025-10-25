@@ -7,7 +7,26 @@ from datetime import timedelta
 import openpyxl
 
 app = Flask(__name__)
-Talisman(app)
+csp = {
+    'default-src': '\'self\'',
+    'script-src': [
+        '\'self\'',
+        '\'unsafe-inline\'',
+        'https://cdn.tailwindcss.com',
+        'https://unpkg.com',
+        'https://cdnjs.cloudflare.com',
+    ],
+    'style-src': [
+        '\'self\'',
+        '\'unsafe-inline\'',
+        'https://fonts.googleapis.com',
+    ],
+    'font-src': [
+        '\'self\'',
+        'https://fonts.gstatic.com',
+    ],
+}
+Talisman(app, content_security_policy=csp)
 
 # It's better to create a single instance of the generator
 roster_generator_instance = RosterGenerator()
