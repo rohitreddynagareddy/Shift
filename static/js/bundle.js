@@ -94,7 +94,7 @@ const TeamWellness = ({ wellnessData }) => {
   );
 };
 
-const DashboardPage = () => {
+const DashboardPage = ({ employees }) => {
   const [kpis, setKpis] = React.useState(null);
   const [alerts, setAlerts] = React.useState(null);
   const [wellnessData, setWellnessData] = React.useState(null);
@@ -153,6 +153,7 @@ const DashboardPage = () => {
           {wellnessData && <TeamWellness wellnessData={wellnessData} />}
         </div>
       </div>
+      <AwardPoints employees={employees} />
     </div>
   );
 };
@@ -2286,6 +2287,255 @@ const YearlySchedulePage = ({ userType, engineerData, managerData }) => {
           {Array.from({ length: 12 }, (_, i) => renderMonth(i))}
         </div>
       </div>
+    </div>
+  );
+};
+const GamificationDashboard = ({ engineerName }) => {
+  const [gamificationData, setGamificationData] = React.useState({ points: 0, badges: [], isClockedIn: false });
+  const [error, setError] = React.useState(null);
+  const [message, setMessage] = React.useState('');
+
+  const fetchData = async () => {
+    try {
+      const response = await fetch(`/api/gamification/status?name=${engineerName}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch gamification status');
+      }
+      const data = await response.json();
+      setGamificationData(data);
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  React.useEffect(() => {
+    if (engineerName) {
+      fetchData();
+    }
+  }, [engineerName]);
+
+  const handleClockIn = async () => {
+    setError(null);
+    setMessage('');
+    try {
+      const response = await fetch('/api/clock_in', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: engineerName }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Clock-in failed');
+      }
+      setMessage(data.message);
+      fetchData(); // Refresh data
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const handleClockOut = async () => {
+    setError(null);
+    setMessage('');
+    try {
+      const response = await fetch('/api/clock_out', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: engineerName }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Clock-out failed');
+      }
+      setMessage(data.message);
+      fetchData(); // Refresh data
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const nextMilestone = Math.ceil(gamificationData.points / 50) * 50 || 50;
+  const progressPercentage = (gamificationData.points / nextMilestone) * 100;
+
+  return (
+    <div className="bg-white p-6 rounded-lg shadow-md">
+      <h2 className="text-xl font-bold mb-4 text-gray-800">Gamification & Clock-In</h2>
+
+      {error && <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">{error}</div>}
+      {message && <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-4" role="alert">{message}</div>}
+
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center space-x-4">
+          <lucide.Star className="text-yellow-500 w-8 h-8" />
+          <div>
+            <div className="text-3xl font-bold text-gray-800">{gamificationData.points}</div>
+            <div className="text-sm text-gray-500">Points</div>
+          </div>
+        </div>
+        <div>
+          {gamificationData.isClockedIn ? (
+            <button onClick={handleClockOut} className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition duration-300 ease-in-out">
+              Clock Out
+            </button>
+          ) : (
+            <button onClick={handleClockIn} className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg transition duration-300 ease-in-out">
+              Clock In
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="mb-6">
+        <h3 className="font-semibold text-gray-700 mb-2">Progress to Next Reward</h3>
+        <div className="w-full bg-gray-200 rounded-full h-4">
+          <div className="bg-blue-500 h-4 rounded-full" style={{ width: `${progressPercentage}%` }}></div>
+        </div>
+        <div className="text-right text-sm text-gray-500 mt-1">{gamificationData.points} / {nextMilestone} Points</div>
+      </div>
+
+      <div>
+        <h3 className="font-semibold text-gray-700 mb-2">My Badges</h3>
+        <div className="flex space-x-4">
+          {gamificationData.badges.length > 0 ? (
+            gamificationData.badges.map(badge => (
+              <div key={badge} className="flex flex-col items-center p-2 bg-gray-100 rounded-lg">
+                <lucide.Badge className="text-indigo-500 w-10 h-10" />
+                <span className="text-xs mt-1 text-gray-600">{badge}</span>
+              </div>
+            ))
+          ) : (
+            <p className="text-sm text-gray-500">No badges earned yet. Keep up the great work!</p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+const Leaderboard = () => {
+  const [leaderboardData, setLeaderboardData] = React.useState([]);
+  const [error, setError] = React.useState(null);
+
+  React.useEffect(() => {
+    const fetchLeaderboard = async () => {
+      try {
+        const response = await fetch('/api/leaderboard');
+        if (!response.ok) {
+          throw new Error('Failed to fetch leaderboard data');
+        }
+        const data = await response.json();
+        setLeaderboardData(data);
+      } catch (err) {
+        setError(err.message);
+      }
+    };
+    fetchLeaderboard();
+  }, []);
+
+  const getRankColor = (rank) => {
+    if (rank === 0) return 'bg-yellow-400 text-white';
+    if (rank === 1) return 'bg-gray-300 text-gray-800';
+    if (rank === 2) return 'bg-yellow-600 text-white';
+    return 'bg-white';
+  };
+
+  return (
+    <div className="bg-white p-6 rounded-lg shadow-md">
+      <h2 className="text-xl font-bold mb-4 text-gray-800 flex items-center">
+        <lucide.Trophy className="w-6 h-6 mr-2 text-yellow-500" />
+        Monthly Leaderboard
+      </h2>
+      {error && <div className="text-red-500">{error}</div>}
+      <ul className="space-y-4">
+        {leaderboardData.map((employee, index) => (
+          <li key={employee.name} className={`flex items-center p-3 rounded-lg transition-transform transform hover:scale-105 ${getRankColor(index)}`}>
+            <span className="text-lg font-bold w-8">{index + 1}</span>
+            <div className="flex-1 ml-4">
+              <p className="font-semibold text-gray-900">{employee.name}</p>
+            </div>
+            <div className="text-xl font-bold text-gray-800">{employee.points} pts</div>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+};
+const AwardPoints = ({ employees }) => {
+  const [selectedEmployee, setSelectedEmployee] = React.useState('');
+  const [points, setPoints] = React.useState(5); // Default to 5 diligence points
+  const [message, setMessage] = React.useState('');
+  const [error, setError] = React.useState('');
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setMessage('');
+    setError('');
+
+    if (!selectedEmployee) {
+      setError('Please select an employee.');
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/award_points', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: selectedEmployee, points: parseInt(points, 10) }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to award points');
+      }
+      setMessage(data.message);
+      // Reset form
+      setSelectedEmployee('');
+      setPoints(5);
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  return (
+    <div className="bg-white p-6 rounded-lg shadow-md mt-6">
+      <h2 className="text-xl font-bold mb-4 text-gray-800">Award Diligence Points</h2>
+      {message && <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">{message}</div>}
+      {error && <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">{error}</div>}
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label htmlFor="employee-select" className="block text-sm font-medium text-gray-700">
+            Select Employee
+          </label>
+          <select
+            id="employee-select"
+            value={selectedEmployee}
+            onChange={(e) => setSelectedEmployee(e.target.value)}
+            className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+          >
+            <option value="">-- Choose an employee --</option>
+            {employees.map(emp => (
+              <option key={emp.name} value={emp.name}>{emp.name}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label htmlFor="points-input" className="block text-sm font-medium text-gray-700">
+            Points to Award
+          </label>
+          <input
+            type="number"
+            id="points-input"
+            value={points}
+            onChange={(e) => setPoints(e.target.value)}
+            min="1"
+            className="mt-1 block w-full pl-3 pr-3 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+          />
+        </div>
+        <button
+          type="submit"
+          className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition duration-300"
+        >
+          Award Points
+        </button>
+      </form>
     </div>
   );
 };

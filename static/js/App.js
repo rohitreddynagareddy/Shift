@@ -93,7 +93,7 @@ const App = () => {
     if (userType === 'manager') {
       switch (view) {
         case 'home':
-          return <DashboardPage />;
+          return <DashboardPage employees={employees} />;
         case 'roster':
           return <AIRosterGenerator
             members={employees}
@@ -108,6 +108,8 @@ const App = () => {
         case 'schedule':
            // Passing employees to schedule manager
           return <ScheduleManager managerData={{ teamTickets: employees }} />;
+        case 'leaderboard':
+          return <Leaderboard />;
         default:
           return <div className="p-8">Page not yet implemented: {view}</div>;
       }
@@ -117,6 +119,10 @@ const App = () => {
           return <EngineerDashboard engineerData={engineerData} isAiAgentActive={isAiAgentActive} handleSetAiAgentActive={handleSetAiAgentActive} />;
         case 'schedule':
           return <EngineerSchedule engineerData={engineerData} />;
+        case 'gamification':
+            return <GamificationDashboard engineerName={engineerData ? engineerData.name : ''} />;
+        case 'leaderboard':
+            return <Leaderboard />;
         case 'request':
           return <RequestPage handleSetAiAgentActive={handleSetAiAgentActive} />;
         default:

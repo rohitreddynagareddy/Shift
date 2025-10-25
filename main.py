@@ -3,6 +3,7 @@ from flask_talisman import Talisman
 from roster_generator import RosterGenerator
 import json
 import datetime
+import calendar
 from datetime import timedelta
 import openpyxl
 
@@ -40,6 +41,11 @@ employees_db = [
     { "name": 'Keerthi', "role": 'Operations', "serviceNow": 3, "jira": 12, "csat": 98, "ticketsResolved": 15, "avgResolutionTime": 30, "leaveBalance": 20, "isAiAgentActive": False, "project": "Orion", "costCenter": "OPS-202" },
     { "name": 'Naresh', "role": 'DBA', "serviceNow": 7, "jira": 4, "csat": 95, "ticketsResolved": 11, "avgResolutionTime": 55, "leaveBalance": 20, "isAiAgentActive": False, "project": "Phoenix", "costCenter": "RND-101" },
 ]
+
+# --- Gamification Data Stores ---
+gamification_points = {emp['name']: 0 for emp in employees_db}
+clock_in_records = [] # { 'name': string, 'clock_in': datetime, 'clock_out': datetime, 'shift': string }
+employee_badges = {emp['name']: [] for emp in employees_db}
 
 project_cost_centers = {
     "Phoenix": ["RND-101", "RND-102"],
@@ -724,6 +730,165 @@ def get_wellness_data():
         "upcomingTimeOff": upcoming_leaves
     }
     return jsonify(wellness_data)
+
+# --- Gamification Endpoints ---
+
+def get_shift_start_time(day_name, shift_name):
+    """Helper to get the datetime object for a shift's start time."""
+    # Define shift start times (could be moved to a config)
+    shift_times = {
+        "Morning": "09:00:00",
+        "Evening": "17:00:00",
+        "Night": "01:00:00"
+    }
+    today = datetime.date.today()
+    # This logic assumes the roster is for the current week
+    days_from_today = (list(calendar.day_name).index(day_name) - today.weekday() + 7) % 7
+    shift_date = today + datetime.timedelta(days=days_from_today)
+    start_time_str = shift_times.get(shift_name, "00:00:00")
+    return datetime.datetime.strptime(f"{shift_date} {start_time_str}", "%Y-%m-%d %H:%M:%S")
+
+@app.route('/api/clock_in', methods=['POST'])
+def clock_in():
+    data = request.get_json()
+    employee_name = data.get('name')
+    if not employee_name:
+        return jsonify({"error": "Employee name is required"}), 400
+
+    now = datetime.datetime.now()
+    today_name = now.strftime('%A')
+
+    if not current_roster or today_name not in current_roster:
+        return jsonify({"error": "No shift scheduled for today"}), 404
+
+    # Find the employee's shift for today
+    employee_shift = None
+    for shift_name, people in current_roster[today_name].items():
+        if isinstance(people, list) and any(p.get('name') == employee_name for p in people):
+            employee_shift = shift_name
+            break
+
+    if not employee_shift:
+        return jsonify({"error": "You do not have a shift scheduled for today."}), 404
+
+    # Check if already clocked in for this shift
+    if any(rec['name'] == employee_name and rec['shift'] == f"{today_name} {employee_shift}" and 'clock_out' not in rec for rec in clock_in_records):
+         return jsonify({"error": "You have already clocked in for this shift."}), 400
+
+    # Calculate points
+    shift_start_time = get_shift_start_time(today_name, employee_shift)
+    time_diff = now - shift_start_time
+    points_awarded = 0
+    message = ""
+
+    if time_diff.total_seconds() <= 0: # Early
+        points_awarded = 2
+        message = f"Clocked in early! +{points_awarded} points."
+    elif 0 < time_diff.total_seconds() <= 300: # On time (within 5 mins)
+        points_awarded = 1
+        message = f"Clocked in on time! +{points_awarded} points."
+    else: # Late
+        message = "Clocked in late. No points awarded."
+
+    if points_awarded > 0:
+        gamification_points[employee_name] = gamification_points.get(employee_name, 0) + points_awarded
+
+    # Record the clock-in
+    clock_in_records.append({
+        "name": employee_name,
+        "clock_in": now.isoformat(),
+        "shift": f"{today_name} {employee_shift}"
+    })
+
+    log_to_file(f"{employee_name} clocked in for {employee_shift}. {message}")
+    return jsonify({"message": message, "points": gamification_points.get(employee_name)}), 200
+
+@app.route('/api/clock_out', methods=['POST'])
+def clock_out():
+    data = request.get_json()
+    employee_name = data.get('name')
+    if not employee_name:
+        return jsonify({"error": "Employee name is required"}), 400
+
+    now = datetime.datetime.now()
+
+    # Find the active clock-in record for this employee
+    active_record = next((rec for rec in reversed(clock_in_records) if rec['name'] == employee_name and 'clock_out' not in rec), None)
+
+    if not active_record:
+        return jsonify({"error": "No active clock-in found. Cannot clock out."}), 404
+
+    active_record['clock_out'] = now.isoformat()
+    log_to_file(f"{employee_name} clocked out.")
+    return jsonify({"message": "Successfully clocked out."}), 200
+
+@app.route('/api/gamification/status', methods=['GET'])
+def gamification_status():
+    employee_name = request.args.get('name')
+    if not employee_name:
+        return jsonify({"error": "Employee name is required"}), 400
+
+    points = gamification_points.get(employee_name, 0)
+    badges = employee_badges.get(employee_name, [])
+
+    # Check for active clock-in
+    is_clocked_in = any(rec['name'] == employee_name and 'clock_out' not in rec for rec in clock_in_records)
+
+    return jsonify({
+        "points": points,
+        "badges": badges,
+        "isClockedIn": is_clocked_in
+    })
+
+@app.route('/api/leaderboard', methods=['GET'])
+def get_leaderboard():
+    sorted_employees = sorted(gamification_points.items(), key=lambda item: item[1], reverse=True)
+    leaderboard = [{"name": name, "points": points} for name, points in sorted_employees]
+    return jsonify(leaderboard)
+
+badge_tiers = {
+    50: "Punctual Pro",
+    100: "Taskmaster",
+    200: "Shift Sentinel",
+}
+
+def check_and_award_badges(employee_name):
+    """Check points and award badges if a new tier is reached."""
+    points = gamification_points.get(employee_name, 0)
+    current_badges = employee_badges.get(employee_name, [])
+    new_badges = []
+    for threshold, badge_name in badge_tiers.items():
+        if points >= threshold and badge_name not in current_badges:
+            employee_badges[employee_name].append(badge_name)
+            new_badges.append(badge_name)
+    return new_badges
+
+@app.route('/api/award_points', methods=['POST'])
+def award_points():
+    data = request.get_json()
+    employee_name = data.get('name')
+    points_to_award = data.get('points', 0)
+
+    if not employee_name or employee_name not in gamification_points:
+        return jsonify({"error": "Invalid employee name"}), 400
+
+    if not isinstance(points_to_award, int) or points_to_award <= 0:
+        return jsonify({"error": "Points must be a positive integer"}), 400
+
+    gamification_points[employee_name] += points_to_award
+
+    newly_awarded_badges = check_and_award_badges(employee_name)
+
+    message = f"Successfully awarded {points_to_award} points to {employee_name}."
+    if newly_awarded_badges:
+        message += f" New badges earned: {', '.join(newly_awarded_badges)}!"
+
+    log_to_file(message)
+    return jsonify({
+        "message": message,
+        "new_total": gamification_points[employee_name],
+        "new_badges": newly_awarded_badges
+    })
 
 
 if __name__ == '__main__':
