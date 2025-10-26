@@ -2148,7 +2148,7 @@ const App = () => {
         case 'schedule':
           return <ScheduleManager managerData={managerData} />;
         case 'gamification':
-          return <ManagerGamificationPage employees={employees} />;
+          return <ManagerGamificationPage employees={managerData.teamTickets} />;
         case 'yearly_schedule':
           return <YearlySchedulePage userType={userType} engineerData={engineerData} managerData={managerData} />;
         case 'approvals':
