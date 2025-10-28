@@ -1988,6 +1988,7 @@ const App = () => {
   const [isAiAgentActive, setIsAiAgentActive] = React.useState(false);
   const [leaveRequests, setLeaveRequests] = React.useState([]);
   const [notifications, setNotifications] = React.useState([]);
+  const [employees, setEmployees] = React.useState([]);
 
   // --- EVENT HANDLERS ---
   const handleSwitchUserType = () => {
@@ -2101,6 +2102,7 @@ const App = () => {
       const employees = await employeesRes.json();
       const leaveRequestsData = await leaveRes.json();
 
+      setEmployees(employees);
       setLeaveRequests(leaveRequestsData);
 
       // Update manager data with fresh employee list
@@ -2148,7 +2150,7 @@ const App = () => {
         case 'schedule':
           return <ScheduleManager managerData={managerData} />;
         case 'gamification':
-          return <ManagerGamificationPage employees={managerData.teamTickets} />;
+          return <ManagerGamificationPage employees={employees} />;
         case 'yearly_schedule':
           return <YearlySchedulePage userType={userType} engineerData={engineerData} managerData={managerData} />;
         case 'approvals':
@@ -2300,6 +2302,17 @@ const GamificationDashboard = ({ engineerName }) => {
   const [error, setError] = React.useState(null);
   const [message, setMessage] = React.useState('');
 
+  const Icon = (name, props = {}) => {
+      const { size = 20, className = '' } = props;
+      const camelCaseName = name.charAt(0).toLowerCase() + name.slice(1).replace(/-(\w)/g, g => g[1].toUpperCase());
+      const iconNode = lucide.icons[camelCaseName];
+      if (!iconNode) {
+          console.warn(`Lucide icon not found: ${name} (as ${camelCaseName})`);
+          return <span className={className}><svg width={size} height={size}></svg></span>;
+      }
+      return <span className={className} dangerouslySetInnerHTML={{ __html: iconNode.toSvg({ width: size, height: size }) }} />;
+  };
+
   const fetchData = async () => {
     try {
       const response = await fetch(`/api/gamification/status?name=${engineerName}`);
@@ -2372,7 +2385,7 @@ const GamificationDashboard = ({ engineerName }) => {
 
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center space-x-4">
-              <lucide.Star className="text-yellow-500 w-8 h-8" />
+              {Icon('Star', { className: "text-yellow-500", size: 32 })}
               <div>
                 <div className="text-3xl font-bold text-gray-800">{gamificationData.points}</div>
                 <div className="text-sm text-gray-500">Points</div>
@@ -2405,7 +2418,7 @@ const GamificationDashboard = ({ engineerName }) => {
               {gamificationData.badges.length > 0 ? (
                 gamificationData.badges.map(badge => (
                   <div key={badge} className="flex flex-col items-center p-2 bg-gray-100 rounded-lg">
-                    <lucide.Badge className="text-indigo-500 w-10 h-10" />
+                    {Icon('Badge', { className: "text-indigo-500", size: 40 })}
                     <span className="text-xs mt-1 text-gray-600">{badge}</span>
                   </div>
                 ))
@@ -2422,6 +2435,17 @@ const GamificationDashboard = ({ engineerName }) => {
 const Leaderboard = () => {
   const [leaderboardData, setLeaderboardData] = React.useState([]);
   const [error, setError] = React.useState(null);
+
+  const Icon = (name, props = {}) => {
+      const { size = 20, className = '' } = props;
+      const camelCaseName = name.charAt(0).toLowerCase() + name.slice(1).replace(/-(\w)/g, g => g[1].toUpperCase());
+      const iconNode = lucide.icons[camelCaseName];
+      if (!iconNode) {
+          console.warn(`Lucide icon not found: ${name} (as ${camelCaseName})`);
+          return <span className={className}><svg width={size} height={size}></svg></span>;
+      }
+      return <span className={className} dangerouslySetInnerHTML={{ __html: iconNode.toSvg({ width: size, height: size }) }} />;
+  };
 
   React.useEffect(() => {
     const fetchLeaderboard = async () => {
@@ -2449,7 +2473,7 @@ const Leaderboard = () => {
   return (
     <div className="bg-white p-6 rounded-lg shadow-md">
       <h2 className="text-xl font-bold mb-4 text-gray-800 flex items-center">
-        <lucide.Trophy className="w-6 h-6 mr-2 text-yellow-500" />
+        {Icon('Trophy', { className: "text-yellow-500", size: 24 })}
         Monthly Leaderboard
       </h2>
       {error && <div className="text-red-500">{error}</div>}
