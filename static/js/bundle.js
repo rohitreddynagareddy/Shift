@@ -32,7 +32,7 @@ const KpiCards = ({ kpis }) => {
   );
 };
 
-const FutureCastRadar = ({ alerts, addNotification }) => {
+const FutureCastRadar = ({ alerts, onOpenModal }) => {
   const alertColors = {
     'High Ticket Volume Predicted': 'border-red-500',
     'Burnout Forecast': 'border-orange-500',
@@ -49,7 +49,7 @@ const FutureCastRadar = ({ alerts, addNotification }) => {
             <p className="text-gray-600 my-1">{alert.message}</p>
             <div className="flex justify-between items-center mt-2">
               <span className="text-blue-600 font-semibold">{alert.action}</span>
-              <button onClick={() => addNotification('This feature is coming soon!', 'info')} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+              <button onClick={() => onOpenModal(alert)} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
                 Take Action
               </button>
             </div>
@@ -158,7 +158,7 @@ const DashboardPage = ({ employees }) => {
       {kpis && <KpiCards kpis={kpis} />}
       <div className="lg:flex lg:space-x-6 mt-6">
         <div className="lg:w-2/3">
-          {alerts && <FutureCastRadar alerts={alerts} addNotification={addNotification} />}
+          {alerts && <FutureCastRadar alerts={alerts} onOpenModal={handleOpenActionModal} />}
         </div>
         <div className="lg:w-1/3">
           {wellnessData && <TeamWellness wellnessData={wellnessData} />}
@@ -571,7 +571,7 @@ const EngineerSchedule = ({ engineerData }) => {
      </div>
   );
 };
-const Header = ({ userType, engineerName, onSwitchUserType, addNotification }) => {
+const Header = ({ userType, engineerName, onSwitchUserType, addNotification, onInviteClick, onPublishClick }) => {
   const [isDropdownOpen, setIsDropdownOpen] = React.useState(false);
 
   const title = userType === 'manager'
@@ -612,8 +612,8 @@ const Header = ({ userType, engineerName, onSwitchUserType, addNotification }) =
             </div>
           )}
         </div>
-        <button onClick={() => addNotification('This feature is coming soon!', 'info')} className="bg-gray-200 text-gray-800 font-semibold px-4 py-2 rounded-lg mr-2 hover:bg-blue-700">Invite</button>
-        <button onClick={() => addNotification('This feature is coming soon!', 'info')} className="bg-blue-600 text-white font-semibold px-4 py-2 rounded-lg hover:bg-blue-700">Publish Roster</button>
+        <button onClick={onInviteClick} className="bg-gray-200 text-gray-800 font-semibold px-4 py-2 rounded-lg mr-2 hover:bg-blue-700">Invite</button>
+        <button onClick={onPublishClick} className="bg-blue-600 text-white font-semibold px-4 py-2 rounded-lg hover:bg-blue-700">Publish Roster</button>
       </div>
     </header>
   );
@@ -734,7 +734,114 @@ const SwapRequestModal = ({ isOpen, onClose, myShift, engineerData, addNotificat
     );
 };
 
+const InviteEmployeeModal = ({ isOpen, onClose, onInvite, addNotification }) => {
+    const [name, setName] = React.useState('');
+    const [role, setRole] = React.useState('Development');
+    const [project, setProject] = React.useState('');
+    const [costCenter, setCostCenter] = React.useState('');
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        if (!name || !project || !costCenter) {
+            addNotification('Please fill out all fields.', 'warning');
+            return;
+        }
+        onInvite({ name, role, project, costCenter });
+    };
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+            <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-lg">
+                <h2 className="text-2xl font-bold mb-4">Invite New Employee</h2>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    <div>
+                        <label htmlFor="name" className="block text-sm font-medium text-gray-700">Name</label>
+                        <input type="text" id="name" value={name} onChange={e => setName(e.target.value)} className="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2" />
+                    </div>
+                    <div>
+                        <label htmlFor="role" className="block text-sm font-medium text-gray-700">Role</label>
+                        <select id="role" value={role} onChange={e => setRole(e.target.value)} className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md">
+                            <option>Development</option>
+                            <option>Operations</option>
+                            <option>DBA</option>
+                            <option>Support</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label htmlFor="project" className="block text-sm font-medium text-gray-700">Project</label>
+                        <input type="text" id="project" value={project} onChange={e => setProject(e.target.value)} className="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2" />
+                    </div>
+                    <div>
+                        <label htmlFor="costCenter" className="block text-sm font-medium text-gray-700">Cost Center</label>
+                        <input type="text" id="costCenter" value={costCenter} onChange={e => setCostCenter(e.target.value)} className="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2" />
+                    </div>
+                    <div className="mt-6 flex justify-end space-x-3">
+                        <button type="button" onClick={onClose} className="bg-gray-300 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-400">Cancel</button>
+                        <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">Invite Employee</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+};
+
+const TakeActionModal = ({ isOpen, onClose, onConfirm, action, addNotification }) => {
+    if (!isOpen || !action) return null;
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+            <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-lg">
+                <h2 className="text-2xl font-bold mb-4">Confirm Action</h2>
+                <p className="mb-4">Are you sure you want to take the following action?</p>
+                <div className="bg-blue-50 p-4 rounded-lg">
+                    <p className="font-semibold">{action.type}</p>
+                    <p className="text-gray-700">{action.message}</p>
+                    <p className="text-blue-600 font-bold mt-2">{action.action}</p>
+                </div>
+                <div className="mt-6 flex justify-end space-x-3">
+                    <button type="button" onClick={onClose} className="bg-gray-300 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-400">Cancel</button>
+                    <button type="button" onClick={() => onConfirm(action)} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">Confirm Action</button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const ManagerDashboard = ({ managerData, addNotification }) => {
+  const [isActionModalOpen, setIsActionModalOpen] = React.useState(false);
+  const [selectedAction, setSelectedAction] = React.useState(null);
+
+  const handleOpenActionModal = (action) => {
+    setSelectedAction(action);
+    setIsActionModalOpen(true);
+  };
+
+  const handleCloseActionModal = () => {
+    setSelectedAction(null);
+    setIsActionModalOpen(false);
+  };
+
+  const handleConfirmAction = async (action) => {
+    try {
+      const response = await fetch('/api/roster/action', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(action),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to take action');
+      }
+      addNotification(data.message, 'success');
+    } catch (error) {
+      addNotification(error.message, 'error');
+    } finally {
+      handleCloseActionModal();
+    }
+  };
+
   if (!managerData) {
     return <div className="p-8">Loading...</div>;
   }
@@ -810,7 +917,7 @@ const ManagerDashboard = ({ managerData, addNotification }) => {
                 <div className="bg-blue-100 text-blue-800 p-3 rounded-md flex items-center">
                   {Icon('Sparkles', { size: 18, className: 'mr-3' })}
                   <p className="font-semibold text-sm">{item.recommendation}</p>
-                  <button onClick={() => addNotification('This feature is coming soon!', 'info')} className="ml-auto bg-blue-600 text-white text-xs font-bold py-1 px-3 rounded-full hover:bg-blue-700">Take Action</button>
+                  <button onClick={() => handleOpenActionModal(item)} className="ml-auto bg-blue-600 text-white text-xs font-bold py-1 px-3 rounded-full hover:bg-blue-700">Take Action</button>
                 </div>
               </div>
             ))}
@@ -852,6 +959,13 @@ const ManagerDashboard = ({ managerData, addNotification }) => {
           <h3 className="font-bold text-xl mb-4 text-gray-800">Team Ticket Distribution</h3>
           {teamTicketChart}
       </DashboardCard>
+      <TakeActionModal
+        isOpen={isActionModalOpen}
+        onClose={handleCloseActionModal}
+        onConfirm={handleConfirmAction}
+        action={selectedAction}
+        addNotification={addNotification}
+      />
     </div>
   );
 };
@@ -1873,6 +1987,7 @@ const App = () => {
   const [isAiAgentActive, setIsAiAgentActive] = React.useState(false);
   const [leaveRequests, setLeaveRequests] = React.useState([]);
   const [notifications, setNotifications] = React.useState([]);
+  const [isInviteModalOpen, setIsInviteModalOpen] = React.useState(false);
 
   // --- EVENT HANDLERS ---
   const handleSwitchUserType = () => {
@@ -1967,6 +2082,43 @@ const App = () => {
       }
     } catch (error) {
       console.error("Error updating leave request:", error);
+      addNotification(error.message, 'error');
+    }
+  };
+
+  const handleInviteEmployee = async (employeeData) => {
+    try {
+      const response = await fetch('/api/employees/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(employeeData),
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to invite employee');
+      }
+      const successData = await response.json();
+      addNotification(successData.message, 'success');
+      toggleInviteModal();
+      fetchInitialData(); // Refresh the employee list
+    } catch (error) {
+      addNotification(error.message, 'error');
+    }
+  };
+
+  const toggleInviteModal = () => {
+    setIsInviteModalOpen(!isInviteModalOpen);
+  };
+
+  const handlePublishRoster = async () => {
+    try {
+      const response = await fetch('/api/roster/publish', { method: 'POST' });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to publish roster');
+      }
+      addNotification(data.message, 'success');
+    } catch (error) {
       addNotification(error.message, 'error');
     }
   };
@@ -2080,11 +2232,19 @@ const App = () => {
           engineerName={engineerData ? engineerData.name : ''}
           onSwitchUserType={handleSwitchUserType}
           addNotification={addNotification}
+          onInviteClick={toggleInviteModal}
+          onPublishClick={handlePublishRoster}
         />
         <main className="flex-1 overflow-y-auto">
           {(managerData && engineerData) ? renderView() : <div className="p-8">Loading...</div>}
         </main>
       </div>
+      <InviteEmployeeModal
+        isOpen={isInviteModalOpen}
+        onClose={toggleInviteModal}
+        onInvite={handleInviteEmployee}
+        addNotification={addNotification}
+      />
     </div>
   );
 };

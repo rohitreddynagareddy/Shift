@@ -34,6 +34,7 @@ roster_generator_instance = RosterGenerator()
 
 # In-memory data store for the generated roster
 current_roster = {}
+roster_published = False
 
 # In-memory data store for employees
 employees_db = [
@@ -91,12 +92,44 @@ def generate_roster():
 @app.route('/api/roster/status', methods=['GET'])
 def roster_status():
     log_to_file("Roster status route was hit.")
-    return jsonify({"isGenerated": bool(current_roster)})
+    return jsonify({"isGenerated": bool(current_roster), "isPublished": roster_published})
+
+@app.route('/api/roster/publish', methods=['POST'])
+def publish_roster():
+    global roster_published
+    log_to_file("Publish roster route was hit.")
+    if not current_roster:
+        return jsonify({"error": "No roster has been generated to publish."}), 400
+
+    roster_published = True
+    return jsonify({"message": "Roster published successfully."}), 200
 
 @app.route('/api/employees', methods=['GET'])
 def get_employees():
     log_to_file("Get all employees route was hit.")
     return jsonify(employees_db)
+
+@app.route('/api/employees/add', methods=['POST'])
+def add_employee():
+    data = request.json
+    # Basic validation
+    if not all(k in data for k in ['name', 'role', 'project', 'costCenter']):
+        return jsonify({"error": "Missing required employee data"}), 400
+
+    new_employee = {
+        "name": data['name'],
+        "role": data['role'],
+        "project": data['project'],
+        "costCenter": data['costCenter'],
+        # Add default values for other fields
+        "ticketsResolved": 0,
+        "avgResolutionTime": 0,
+        "csat": 0,
+        "leaveBalance": 15, # Default leave balance
+        "isAiAgentActive": False
+    }
+    employees_db.append(new_employee)
+    return jsonify({"message": f"Employee {data['name']} added successfully."}), 201
 
 @app.route('/api/employees/<string:name>/shifts', methods=['GET'])
 def get_employee_shifts(name):
@@ -889,6 +922,55 @@ def award_points():
         "new_total": gamification_points[employee_name],
         "new_badges": newly_awarded_badges
     })
+
+@app.route('/api/roster/action', methods=['POST'])
+def take_roster_action():
+    log_to_file("Take roster action route was hit.")
+    data = request.get_json()
+    if not data or 'type' not in data:
+        return jsonify({"error": "Missing 'type' in request body"}), 400
+
+    action_type = data.get('type')
+
+    if action_type == 'Skill Mismatch':
+        # Simplified logic for the "smart swap" demo
+        try:
+            rohit = next((emp for emp in employees_db if emp['name'] == 'Rohit'), None)
+            keerthi = next((emp for emp in employees_db if emp['name'] == 'Keerthi'), None)
+            if not rohit or not keerthi:
+                return jsonify({"error": "Rohit or Keerthi not found in employee list."}), 404
+
+            # Find their shifts and swap them
+            # This is a highly simplified example and assumes they both have one shift
+            rohit_shift_day, rohit_shift_name = None, None
+            keerthi_shift_day, keerthi_shift_name = None, None
+
+            for day, shifts in current_roster.items():
+                for shift, people in shifts.items():
+                    if any(p.get('name') == 'Rohit' for p in people):
+                        rohit_shift_day, rohit_shift_name = day, shift
+                    if any(p.get('name') == 'Keerthi' for p in people):
+                        keerthi_shift_day, keerthi_shift_name = day, shift
+
+            if not rohit_shift_day or not keerthi_shift_day:
+                 return jsonify({"error": "Could not find shifts for both Rohit and Keerthi."}), 404
+
+            # Remove them from their current shifts
+            current_roster[rohit_shift_day][rohit_shift_name] = [p for p in current_roster[rohit_shift_day][rohit_shift_name] if p['name'] != 'Rohit']
+            current_roster[keerthi_shift_day][keerthi_shift_name] = [p for p in current_roster[keerthi_shift_day][keerthi_shift_name] if p['name'] != 'Keerthi']
+
+            # Add them to each other's shifts
+            current_roster[rohit_shift_day][rohit_shift_name].append(keerthi)
+            current_roster[keerthi_shift_day][keerthi_shift_name].append(rohit)
+
+            log_to_file("Successfully performed smart swap between Rohit and Keerthi.")
+            return jsonify({"message": "Smart swap completed successfully. Roster has been updated."}), 200
+
+        except Exception as e:
+            log_to_file(f"Error during smart swap: {e}")
+            return jsonify({"error": "An error occurred during the smart swap."}), 500
+
+    return jsonify({"message": "Action noted. No change made for this action type."}), 200
 
 
 if __name__ == '__main__':
