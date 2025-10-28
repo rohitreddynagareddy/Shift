@@ -923,55 +923,113 @@ def award_points():
         "new_badges": newly_awarded_badges
     })
 
+# --- Helper functions for roster manipulation ---
+def find_employee_shift(employee_name, day_filter=None):
+    """Finds the shift for a given employee, optionally filtered by day."""
+    log_to_file(f"Searching for {employee_name}'s shift. Day filter: {day_filter}")
+    for day, shifts in current_roster.items():
+        if day_filter and day != day_filter:
+            continue
+        for shift_name, people in shifts.items():
+            if isinstance(people, list):
+                for person in people:
+                    if person and person.get('name') == employee_name:
+                        log_to_file(f"Found {employee_name} in {day}, {shift_name} shift.")
+                        return day, shift_name
+    log_to_file(f"Could not find a shift for {employee_name}.")
+    return None, None
+
+def remove_employee_from_shift(day, shift_name, employee_name):
+    """Removes an employee from a specific shift."""
+    log_to_file(f"Removing {employee_name} from {day}, {shift_name} shift.")
+    if day in current_roster and shift_name in current_roster[day]:
+        original_count = len(current_roster[day][shift_name])
+        current_roster[day][shift_name] = [p for p in current_roster[day][shift_name] if p and p.get('name') != employee_name]
+        log_to_file(f"Removed {original_count - len(current_roster[day][shift_name])} instance(s) of {employee_name}.")
+    else:
+        log_to_file(f"Shift {day}/{shift_name} not found for removal.")
+
+
+def add_employee_to_shift(day, shift_name, employee_obj):
+    """Adds an employee object to a specific shift, creating the shift if necessary."""
+    log_to_file(f"Adding {employee_obj.get('name')} to {day}, {shift_name} shift.")
+    if day not in current_roster:
+        current_roster[day] = {}
+    if shift_name not in current_roster[day]:
+        current_roster[day][shift_name] = []
+
+    current_roster[day][shift_name].append(employee_obj)
+    log_to_file(f"Successfully added {employee_obj.get('name')}.")
+
 @app.route('/api/roster/action', methods=['POST'])
 def take_roster_action():
-    log_to_file("Take roster action route was hit.")
     data = request.get_json()
-    if not data or 'type' not in data:
-        return jsonify({"error": "Missing 'type' in request body"}), 400
-
     action_type = data.get('type')
+    log_to_file(f"Received roster action request: {action_type}")
 
-    if action_type == 'Skill Mismatch':
-        # Simplified logic for the "smart swap" demo
-        try:
+    if not current_roster:
+        return jsonify({"error": "A roster must be generated before actions can be taken."}), 400
+
+    try:
+        if action_type == 'Skill Mismatch':
             rohit = next((emp for emp in employees_db if emp['name'] == 'Rohit'), None)
             keerthi = next((emp for emp in employees_db if emp['name'] == 'Keerthi'), None)
-            if not rohit or not keerthi:
-                return jsonify({"error": "Rohit or Keerthi not found in employee list."}), 404
+            if not rohit or not keerthi: return jsonify({"error": "Required employees for action not found"}), 404
 
-            # Find their shifts and swap them
-            # This is a highly simplified example and assumes they both have one shift
-            rohit_shift_day, rohit_shift_name = None, None
-            keerthi_shift_day, keerthi_shift_name = None, None
+            rohit_shift_day, rohit_shift_name = find_employee_shift('Rohit', day_filter='Monday')
+            keerthi_shift_day, keerthi_shift_name = find_employee_shift('Keerthi', day_filter='Monday')
+            if not rohit_shift_day or not keerthi_shift_day: return jsonify({"error": "Could not find required shifts for action"}), 404
 
-            for day, shifts in current_roster.items():
-                for shift, people in shifts.items():
-                    if any(p.get('name') == 'Rohit' for p in people):
-                        rohit_shift_day, rohit_shift_name = day, shift
-                    if any(p.get('name') == 'Keerthi' for p in people):
-                        keerthi_shift_day, keerthi_shift_name = day, shift
+            remove_employee_from_shift(rohit_shift_day, rohit_shift_name, 'Rohit')
+            remove_employee_from_shift(keerthi_shift_day, keerthi_shift_name, 'Keerthi')
+            add_employee_to_shift(rohit_shift_day, rohit_shift_name, keerthi)
+            add_employee_to_shift(keerthi_shift_day, keerthi_shift_name, rohit)
 
-            if not rohit_shift_day or not keerthi_shift_day:
-                 return jsonify({"error": "Could not find shifts for both Rohit and Keerthi."}), 404
-
-            # Remove them from their current shifts
-            current_roster[rohit_shift_day][rohit_shift_name] = [p for p in current_roster[rohit_shift_day][rohit_shift_name] if p['name'] != 'Rohit']
-            current_roster[keerthi_shift_day][keerthi_shift_name] = [p for p in current_roster[keerthi_shift_day][keerthi_shift_name] if p['name'] != 'Keerthi']
-
-            # Add them to each other's shifts
-            current_roster[rohit_shift_day][rohit_shift_name].append(keerthi)
-            current_roster[keerthi_shift_day][keerthi_shift_name].append(rohit)
-
-            log_to_file("Successfully performed smart swap between Rohit and Keerthi.")
+            log_to_file("Action 'Skill Mismatch' completed successfully.")
             return jsonify({"message": "Smart swap completed successfully. Roster has been updated."}), 200
 
-        except Exception as e:
-            log_to_file(f"Error during smart swap: {e}")
-            return jsonify({"error": "An error occurred during the smart swap."}), 500
+        elif action_type == 'High Ticket Volume Predicted':
+            naresh = next((emp for emp in employees_db if emp['name'] == 'Naresh'), None)
+            if not naresh: return jsonify({"error": "Naresh not found"}), 404
 
-    return jsonify({"message": "Action noted. No change made for this action type."}), 200
+            naresh_shift_day, naresh_shift_name = find_employee_shift('Naresh', day_filter='Friday')
+            if naresh_shift_day:
+                remove_employee_from_shift(naresh_shift_day, naresh_shift_name, 'Naresh')
 
+            add_employee_to_shift('Friday', 'Standby', naresh)
+            log_to_file("Action 'High Ticket Volume' completed successfully.")
+            return jsonify({"message": "Naresh has been placed on a standby shift for Friday."}), 200
+
+        elif action_type == 'Burnout Forecast':
+            keerthi = next((emp for emp in employees_db if emp['name'] == 'Keerthi'), None)
+            if not keerthi: return jsonify({"error": "Keerthi not found"}), 404
+
+            displaced_employee_name = None
+            if 'Thursday' in current_roster and 'Morning' in current_roster['Thursday'] and current_roster['Thursday']['Morning']:
+                displaced_employee_name = current_roster['Thursday']['Morning'][0]['name']
+                remove_employee_from_shift('Thursday', 'Morning', displaced_employee_name)
+
+            keerthi_shift_day, keerthi_shift_name = find_employee_shift('Keerthi', day_filter='Thursday')
+            if keerthi_shift_day:
+                remove_employee_from_shift(keerthi_shift_day, keerthi_shift_name, 'Keerthi')
+
+            add_employee_to_shift('Thursday', 'Morning', keerthi)
+
+            if displaced_employee_name and keerthi_shift_day:
+                displaced_employee_obj = next((emp for emp in employees_db if emp['name'] == displaced_employee_name), None)
+                if displaced_employee_obj:
+                    add_employee_to_shift(keerthi_shift_day, keerthi_shift_name, displaced_employee_obj)
+
+            log_to_file("Action 'Burnout Forecast' completed successfully.")
+            return jsonify({"message": "Keerthi's shift has been updated to Morning on Thursday."}), 200
+
+        else:
+            log_to_file(f"Action type '{action_type}' was noted but not handled.")
+            return jsonify({"message": f"Action '{action_type}' noted. No change made for this action type."}), 200
+
+    except Exception as e:
+        log_to_file(f"ERROR during roster action '{action_type}': {e}")
+        return jsonify({"error": f"An error occurred during the '{action_type}' action."}), 500
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
