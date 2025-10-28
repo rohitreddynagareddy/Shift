@@ -52,6 +52,17 @@ const FutureCastRadar = ({ alerts }) => {
 const TeamWellness = ({ wellnessData }) => {
   const { shiftFairnessScore, kudos, upcomingTimeOff } = wellnessData;
 
+  const Icon = (name, props = {}) => {
+      const { size = 20, className = '' } = props;
+      const camelCaseName = name.charAt(0).toLowerCase() + name.slice(1).replace(/-(\w)/g, g => g[1].toUpperCase());
+      const iconNode = lucide.icons[camelCaseName];
+      if (!iconNode) {
+          console.warn(`Lucide icon not found: ${name} (as ${camelCaseName})`);
+          return <span className={className}><svg width={size} height={size}></svg></span>;
+      }
+      return <span className={className} dangerouslySetInnerHTML={{ __html: iconNode.toSvg({ width: size, height: size }) }} />;
+  };
+
   return (
     <div className="bg-white p-6 rounded-lg shadow-md mt-6">
       <h3 className="text-xl font-bold text-gray-800 mb-4">Team Wellness & Engagement</h3>
@@ -83,7 +94,7 @@ const TeamWellness = ({ wellnessData }) => {
           <div className="space-y-2">
             {upcomingTimeOff.map((leave, index) => (
               <div key={index} className="flex items-center space-x-2">
-                <i className="lucide-calendar-off text-gray-500"></i>
+                {Icon('CalendarOff', { className: 'text-gray-500' })}
                 <p className="text-sm text-gray-700">{leave.name}'s vacation starts in {leave.daysUntil} days!</p>
               </div>
             ))}
