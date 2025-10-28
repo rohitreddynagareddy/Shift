@@ -60,7 +60,62 @@ const FutureCastRadar = ({ alerts, onOpenModal }) => {
   );
 };
 
-const TeamWellness = ({ wellnessData }) => {
+const KudosModal = ({ isOpen, onClose, employees, onGiveKudos }) => {
+    const [selectedEmployee, setSelectedEmployee] = React.useState('');
+    const [message, setMessage] = React.useState('');
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        if (!selectedEmployee || !message) {
+            alert('Please select an employee and write a message.');
+            return;
+        }
+        onGiveKudos(selectedEmployee, message);
+        setSelectedEmployee('');
+        setMessage('');
+    };
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+            <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-lg">
+                <h2 className="text-2xl font-bold mb-4">Give Kudos</h2>
+                <form onSubmit={handleSubmit}>
+                    <div className="mb-4">
+                        <label htmlFor="employee-select" className="block text-sm font-medium text-gray-700">Recipient</label>
+                        <select
+                            id="employee-select"
+                            value={selectedEmployee}
+                            onChange={(e) => setSelectedEmployee(e.target.value)}
+                            className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
+                        >
+                            <option value="">-- Select an Employee --</option>
+                            {employees.map(emp => <option key={emp.name} value={emp.name}>{emp.name}</option>)}
+                        </select>
+                    </div>
+                    <div className="mb-4">
+                        <label htmlFor="kudos-message" className="block text-sm font-medium text-gray-700">Message</label>
+                        <textarea
+                            id="kudos-message"
+                            rows="3"
+                            value={message}
+                            onChange={(e) => setMessage(e.target.value)}
+                            className="mt-1 block w-full shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm border border-gray-300 rounded-md p-2"
+                            placeholder="Great job on..."
+                        ></textarea>
+                    </div>
+                    <div className="mt-6 flex justify-end space-x-3">
+                        <button type="button" onClick={onClose} className="bg-gray-300 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-400">Cancel</button>
+                        <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">Send Kudos</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+};
+
+const TeamWellness = ({ wellnessData, onOpenKudosModal }) => {
   const { shiftFairnessScore, kudos, upcomingTimeOff } = wellnessData;
 
   return (
@@ -76,7 +131,10 @@ const TeamWellness = ({ wellnessData }) => {
 
         {/* Kudos Corner */}
         <div>
-          <p className="text-gray-600 font-semibold mb-2">Kudos Corner</p>
+          <div className="flex justify-between items-center mb-2">
+            <p className="text-gray-600 font-semibold">Kudos Corner</p>
+            <button onClick={onOpenKudosModal} className="bg-yellow-400 text-white px-3 py-1 text-xs font-bold rounded-full hover:bg-yellow-500">Give Kudos</button>
+          </div>
           <div className="space-y-2">
             {kudos.map((kudo, index) => (
               <div key={index} className="bg-yellow-100 p-3 rounded-lg">
@@ -105,44 +163,67 @@ const TeamWellness = ({ wellnessData }) => {
   );
 };
 
-const DashboardPage = ({ employees }) => {
+const DashboardPage = ({ employees, addNotification }) => {
   const [kpis, setKpis] = React.useState(null);
   const [alerts, setAlerts] = React.useState(null);
   const [wellnessData, setWellnessData] = React.useState(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState(null);
+  const [isKudosModalOpen, setIsKudosModalOpen] = React.useState(false);
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const [kpisRes, alertsRes, wellnessRes] = await Promise.all([
+        fetch('/api/dashboard/kpis'),
+        fetch('/api/dashboard/radar'),
+        fetch('/api/dashboard/wellness')
+      ]);
+
+      if (!kpisRes.ok || !alertsRes.ok || !wellnessRes.ok) {
+        throw new Error('Failed to fetch dashboard data');
+      }
+
+      const kpisData = await kpisRes.json();
+      const alertsData = await alertsRes.json();
+      const wellnessData = await wellnessRes.json();
+
+      setKpis(kpisData);
+      setAlerts(alertsData);
+      setWellnessData(wellnessData);
+      setError(null);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   React.useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        const [kpisRes, alertsRes, wellnessRes] = await Promise.all([
-          fetch('/api/dashboard/kpis'),
-          fetch('/api/dashboard/radar'),
-          fetch('/api/dashboard/wellness')
-        ]);
-
-        if (!kpisRes.ok || !alertsRes.ok || !wellnessRes.ok) {
-          throw new Error('Failed to fetch dashboard data');
-        }
-
-        const kpisData = await kpisRes.json();
-        const alertsData = await alertsRes.json();
-        const wellnessData = await wellnessRes.json();
-
-        setKpis(kpisData);
-        setAlerts(alertsData);
-        setWellnessData(wellnessData);
-        setError(null);
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchData();
   }, []);
+
+  const handleOpenKudosModal = () => setIsKudosModalOpen(true);
+  const handleCloseKudosModal = () => setIsKudosModalOpen(false);
+
+  const handleGiveKudos = async (recipient, message) => {
+    try {
+        const response = await fetch('/api/kudos/add', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ to: recipient, message: message, from: 'Manager' }),
+        });
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Failed to send kudos');
+        }
+        addNotification('Kudos sent successfully!', 'success');
+        handleCloseKudosModal();
+        fetchData(); // Refresh the wellness data to show the new kudo
+    } catch (error) {
+        addNotification(error.message, 'error');
+    }
+  };
 
   if (loading) {
     return <div className="text-center p-8">Loading dashboard...</div>;
@@ -161,9 +242,15 @@ const DashboardPage = ({ employees }) => {
           {alerts && <FutureCastRadar alerts={alerts} onOpenModal={handleOpenActionModal} />}
         </div>
         <div className="lg:w-1/3">
-          {wellnessData && <TeamWellness wellnessData={wellnessData} />}
+          {wellnessData && <TeamWellness wellnessData={wellnessData} onOpenKudosModal={handleOpenKudosModal} />}
         </div>
       </div>
+      <KudosModal
+        isOpen={isKudosModalOpen}
+        onClose={handleCloseKudosModal}
+        employees={employees}
+        onGiveKudos={handleGiveKudos}
+      />
     </div>
   );
 };
@@ -2177,7 +2264,7 @@ const App = () => {
     if (userType === 'manager') {
       switch (view) {
         case 'home':
-          return <ManagerDashboard managerData={managerData} addNotification={addNotification} />;
+          return <ManagerDashboard managerData={managerData} addNotification={addNotification} employees={managerData.teamTickets} />;
         case 'roster':
           return <AIRosterGenerator onUploadSuccess={fetchInitialData} addNotification={addNotification} />;
         case 'analytics':

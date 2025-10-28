@@ -6,6 +6,7 @@ import datetime
 import calendar
 from datetime import timedelta
 import openpyxl
+import numpy as np
 
 app = Flask(__name__)
 csp = {
@@ -667,6 +668,20 @@ kudos_db = [
     {"from": "Naresh", "to": "Rohit", "message": "Thanks for helping with the deployment script."}
 ]
 
+@app.route('/api/kudos/add', methods=['POST'])
+def add_kudos():
+    data = request.json
+    if not all(k in data for k in ['from', 'to', 'message']):
+        return jsonify({"error": "Missing required kudos data"}), 400
+
+    kudos_db.append({
+        "from": data['from'],
+        "to": data['to'],
+        "message": data['message']
+    })
+
+    return jsonify({"message": "Kudos added successfully."}), 201
+
 @app.route('/api/dashboard/kpis', methods=['GET'])
 def get_dashboard_kpis():
     if not employees_db:
@@ -728,22 +743,41 @@ def get_radar_alerts():
 def get_wellness_data():
     # Shift Fairness Score Calculation
     shift_counts = {emp['name']: {"weekend": 0, "evening": 0, "total": 0} for emp in employees_db}
-    if current_roster:
+    if current_roster and employees_db:
         for day, shifts in current_roster.items():
             for shift_name, people in shifts.items():
                 if isinstance(people, list):
                     for person in people:
-                        if person['name'] in shift_counts:
+                        if person.get('name') in shift_counts:
                             shift_counts[person['name']]['total'] += 1
                             if day in ['Saturday', 'Sunday']:
                                 shift_counts[person['name']]['weekend'] += 1
                             if shift_name == 'Evening':
                                 shift_counts[person['name']]['evening'] += 1
 
-    # Simple fairness score based on the variance of evening/weekend shifts
-    total_evening = sum(counts['evening'] for counts in shift_counts.values())
-    total_weekend = sum(counts['weekend'] for counts in shift_counts.values())
-    fairness_score = "A+" # Default to A+
+        # Calculate variance for weekend and evening shifts
+        weekend_shifts = [emp_counts['weekend'] for emp_counts in shift_counts.values()]
+        evening_shifts = [emp_counts['evening'] for emp_counts in shift_counts.values()]
+
+        weekend_variance = np.var(weekend_shifts) if weekend_shifts else 0
+        evening_variance = np.var(evening_shifts) if evening_shifts else 0
+
+        # A simple scoring metric: lower variance is better.
+        # This logic can be tuned for more sophisticated scoring.
+        total_variance = weekend_variance + evening_variance
+
+        if total_variance <= 0.2:
+            fairness_score = "A+"
+        elif total_variance <= 0.5:
+            fairness_score = "A"
+        elif total_variance <= 1.0:
+            fairness_score = "B"
+        elif total_variance <= 2.0:
+            fairness_score = "C"
+        else:
+            fairness_score = "D"
+    else:
+        fairness_score = "N/A" # Not applicable if no roster or employees
 
     # Upcoming Time Off
     upcoming_leaves = []
