@@ -1,3 +1,14 @@
+const Icon = (name, props = {}) => {
+    const { size = 20, className = '' } = props;
+    const camelCaseName = name.charAt(0).toLowerCase() + name.slice(1).replace(/-(\w)/g, g => g[1].toUpperCase());
+    const iconNode = lucide.icons[camelCaseName];
+    if (!iconNode) {
+        console.warn(`Lucide icon not found: ${name} (as ${camelCaseName})`);
+        return <span className={className}><svg width={size} height={size}></svg></span>;
+    }
+    return <span className={className} dangerouslySetInnerHTML={{ __html: iconNode.toSvg({ width: size, height: size }) }} />;
+};
+
 const KpiCards = ({ kpis }) => {
   const kpiData = [
     { title: 'Kpi Adherence', value: `${kpis.kpiAdherence}%`, color: 'bg-green-500' },
@@ -21,7 +32,7 @@ const KpiCards = ({ kpis }) => {
   );
 };
 
-const FutureCastRadar = ({ alerts }) => {
+const FutureCastRadar = ({ alerts, addNotification }) => {
   const alertColors = {
     'High Ticket Volume Predicted': 'border-red-500',
     'Burnout Forecast': 'border-orange-500',
@@ -38,7 +49,7 @@ const FutureCastRadar = ({ alerts }) => {
             <p className="text-gray-600 my-1">{alert.message}</p>
             <div className="flex justify-between items-center mt-2">
               <span className="text-blue-600 font-semibold">{alert.action}</span>
-              <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+              <button onClick={() => addNotification('This feature is coming soon!', 'info')} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
                 Take Action
               </button>
             </div>
@@ -51,17 +62,6 @@ const FutureCastRadar = ({ alerts }) => {
 
 const TeamWellness = ({ wellnessData }) => {
   const { shiftFairnessScore, kudos, upcomingTimeOff } = wellnessData;
-
-  const Icon = (name, props = {}) => {
-      const { size = 20, className = '' } = props;
-      const camelCaseName = name.charAt(0).toLowerCase() + name.slice(1).replace(/-(\w)/g, g => g[1].toUpperCase());
-      const iconNode = lucide.icons[camelCaseName];
-      if (!iconNode) {
-          console.warn(`Lucide icon not found: ${name} (as ${camelCaseName})`);
-          return <span className={className}><svg width={size} height={size}></svg></span>;
-      }
-      return <span className={className} dangerouslySetInnerHTML={{ __html: iconNode.toSvg({ width: size, height: size }) }} />;
-  };
 
   return (
     <div className="bg-white p-6 rounded-lg shadow-md mt-6">
@@ -158,7 +158,7 @@ const DashboardPage = ({ employees }) => {
       {kpis && <KpiCards kpis={kpis} />}
       <div className="lg:flex lg:space-x-6 mt-6">
         <div className="lg:w-2/3">
-          {alerts && <FutureCastRadar alerts={alerts} />}
+          {alerts && <FutureCastRadar alerts={alerts} addNotification={addNotification} />}
         </div>
         <div className="lg:w-1/3">
           {wellnessData && <TeamWellness wellnessData={wellnessData} />}
@@ -175,17 +175,6 @@ const AIRosterGenerator = ({ onUploadSuccess, addNotification }) => {
   const [constraints, setConstraints] = React.useState('');
   const [members, setMembers] = React.useState([]);
   const [fileName, setFileName] = React.useState('');
-
-  const Icon = (name, props = {}) => {
-      const { size = 20, className = '' } = props;
-      const camelCaseName = name.charAt(0).toLowerCase() + name.slice(1).replace(/-(\w)/g, g => g[1].toUpperCase());
-      const iconNode = lucide.icons[camelCaseName];
-      if (!iconNode) {
-          console.warn(`Lucide icon not found: ${name} (as ${camelCaseName})`);
-          return <span className={className}><svg width={size} height={size}></svg></span>;
-      }
-      return <span className={className} dangerouslySetInnerHTML={{ __html: iconNode.toSvg({ width: size, height: size }) }} />;
-  };
 
   const handleFileUpload = async (event) => {
     const file = event.target.files[0];
@@ -389,17 +378,6 @@ const EngineerDashboard = ({ engineerData, isAiAgentActive, handleSetAiAgentActi
     }
   }, [isAiAgentActive, tasks]);
 
-  const Icon = (name, props = {}) => {
-      const { size = 20, className = '' } = props;
-      const camelCaseName = name.charAt(0).toLowerCase() + name.slice(1).replace(/-(\w)/g, g => g[1].toUpperCase());
-      const iconNode = lucide.icons[camelCaseName];
-      if (!iconNode) {
-          console.warn(`Lucide icon not found: ${name} (as ${camelCaseName})`);
-          return <span className={className}><svg width={size} height={size}></svg></span>;
-      }
-      return <span className={className} dangerouslySetInnerHTML={{ __html: iconNode.toSvg({ width: size, height: size }) }} />;
-  };
-
   if (!engineerData) {
     return <div className="p-8">Loading...</div>;
   }
@@ -530,17 +508,6 @@ const EngineerDashboard = ({ engineerData, isAiAgentActive, handleSetAiAgentActi
 const EngineerSchedule = ({ engineerData }) => {
   const [currentMonth, setCurrentMonth] = React.useState(new Date());
 
-  const Icon = (name, props = {}) => {
-      const { size = 20, className = '' } = props;
-      const camelCaseName = name.charAt(0).toLowerCase() + name.slice(1).replace(/-(\w)/g, g => g[1].toUpperCase());
-      const iconNode = lucide.icons[camelCaseName];
-      if (!iconNode) {
-          console.warn(`Lucide icon not found: ${name} (as ${camelCaseName})`);
-          return <span className={className}><svg width={size} height={size}></svg></span>;
-      }
-      return <span className={className} dangerouslySetInnerHTML={{ __html: iconNode.toSvg({ width: size, height: size }) }} />;
-  };
-
   if (!engineerData) {
     return <div className="p-8">Loading...</div>;
   }
@@ -604,22 +571,8 @@ const EngineerSchedule = ({ engineerData }) => {
      </div>
   );
 };
-const Header = ({ userType, engineerName, onSwitchUserType }) => {
+const Header = ({ userType, engineerName, onSwitchUserType, addNotification }) => {
   const [isDropdownOpen, setIsDropdownOpen] = React.useState(false);
-
-  // This helper function renders icons from the global 'lucide' object
-  const Icon = (name, props = {}) => {
-      const { size = 20, className = '' } = props;
-      const camelCaseName = name.charAt(0).toLowerCase() + name.slice(1).replace(/-(\w)/g, g => g[1].toUpperCase());
-      const iconNode = lucide.icons[camelCaseName];
-      if (!iconNode) {
-          console.warn(`Lucide icon not found: ${name} (as ${camelCaseName})`);
-          // Return a span with a placeholder to maintain layout
-          return <span className={className}><svg width={size} height={size}></svg></span>;
-      }
-      // The className is passed to a wrapper span because dangerouslySetInnerHTML doesn't apply it to the SVG root.
-      return <span className={className} dangerouslySetInnerHTML={{ __html: iconNode.toSvg({ width: size, height: size }) }} />;
-  };
 
   const title = userType === 'manager'
     ? "Manager's Command Center"
@@ -659,8 +612,8 @@ const Header = ({ userType, engineerName, onSwitchUserType }) => {
             </div>
           )}
         </div>
-        <button className="bg-gray-200 text-gray-800 font-semibold px-4 py-2 rounded-lg mr-2 hover:bg-blue-700">Invite</button>
-        <button className="bg-blue-600 text-white font-semibold px-4 py-2 rounded-lg hover:bg-blue-700">Publish Roster</button>
+        <button onClick={() => addNotification('This feature is coming soon!', 'info')} className="bg-gray-200 text-gray-800 font-semibold px-4 py-2 rounded-lg mr-2 hover:bg-blue-700">Invite</button>
+        <button onClick={() => addNotification('This feature is coming soon!', 'info')} className="bg-blue-600 text-white font-semibold px-4 py-2 rounded-lg hover:bg-blue-700">Publish Roster</button>
       </div>
     </header>
   );
@@ -781,19 +734,7 @@ const SwapRequestModal = ({ isOpen, onClose, myShift, engineerData, addNotificat
     );
 };
 
-const ManagerDashboard = ({ managerData }) => {
-  // This helper function renders icons from the global 'lucide' object
-  const Icon = (name, props = {}) => {
-      const { size = 20, className = '' } = props;
-      const camelCaseName = name.charAt(0).toLowerCase() + name.slice(1).replace(/-(\w)/g, g => g[1].toUpperCase());
-      const iconNode = lucide.icons[camelCaseName];
-      if (!iconNode) {
-          console.warn(`Lucide icon not found: ${name} (as ${camelCaseName})`);
-          return <span className={className}><svg width={size} height={size}></svg></span>;
-      }
-      return <span className={className} dangerouslySetInnerHTML={{ __html: iconNode.toSvg({ width: size, height: size }) }} />;
-  };
-
+const ManagerDashboard = ({ managerData, addNotification }) => {
   if (!managerData) {
     return <div className="p-8">Loading...</div>;
   }
@@ -869,7 +810,7 @@ const ManagerDashboard = ({ managerData }) => {
                 <div className="bg-blue-100 text-blue-800 p-3 rounded-md flex items-center">
                   {Icon('Sparkles', { size: 18, className: 'mr-3' })}
                   <p className="font-semibold text-sm">{item.recommendation}</p>
-                  <button className="ml-auto bg-blue-600 text-white text-xs font-bold py-1 px-3 rounded-full hover:bg-blue-700">Take Action</button>
+                  <button onClick={() => addNotification('This feature is coming soon!', 'info')} className="ml-auto bg-blue-600 text-white text-xs font-bold py-1 px-3 rounded-full hover:bg-blue-700">Take Action</button>
                 </div>
               </div>
             ))}
@@ -1013,17 +954,6 @@ const RequestPage = ({ handleSetAiAgentActive, engineerData, leaveRequests, onSu
       checkRosterAndFetchData();
     }
   }, [activeTab, engineerData]);
-
-  const Icon = (name, props = {}) => {
-      const { size = 20, className = '' } = props;
-      const camelCaseName = name.charAt(0).toLowerCase() + name.slice(1).replace(/-(\w)/g, g => g[1].toUpperCase());
-      const iconNode = lucide.icons[camelCaseName];
-      if (!iconNode) {
-          console.warn(`Lucide icon not found: ${name} (as ${camelCaseName})`);
-          return <span className={className}><svg width={size} height={size}></svg></span>;
-      }
-      return <span className={className} dangerouslySetInnerHTML={{ __html: iconNode.toSvg({ width: size, height: size }) }} />;
-  };
 
   const handleLocalLeaveSubmit = (e) => {
     e.preventDefault();
@@ -1381,17 +1311,6 @@ const CabRequestApprovalPage = ({ addNotification }) => {
   );
 };
 const LeaveApprovalPage = ({ leaveRequests, onUpdateRequest }) => {
-  const Icon = (name, props = {}) => {
-      const { size = 20, className = '' } = props;
-      const camelCaseName = name.charAt(0).toLowerCase() + name.slice(1).replace(/-(\w)/g, g => g[1].toUpperCase());
-      const iconNode = lucide.icons[camelCaseName];
-      if (!iconNode) {
-          console.warn(`Lucide icon not found: ${name} (as ${camelCaseName})`);
-          return <span className={className}><svg width={size} height={size}></svg></span>;
-      }
-      return <span className={className} dangerouslySetInnerHTML={{ __html: iconNode.toSvg({ width: size, height: size }) }} />;
-  };
-
   const getStatusColor = (status) => {
     if (status === 'Approved') return 'bg-green-100 text-green-800';
     if (status === 'Rejected') return 'bg-red-100 text-red-800';
@@ -1435,17 +1354,6 @@ const LeaveApprovalPage = ({ leaveRequests, onUpdateRequest }) => {
 
 const ScheduleManager = ({ managerData }) => {
   const [currentMonth, setCurrentMonth] = React.useState(new Date());
-
-  const Icon = (name, props = {}) => {
-      const { size = 20, className = '' } = props;
-      const camelCaseName = name.charAt(0).toLowerCase() + name.slice(1).replace(/-(\w)/g, g => g[1].toUpperCase());
-      const iconNode = lucide.icons[camelCaseName];
-      if (!iconNode) {
-          console.warn(`Lucide icon not found: ${name} (as ${camelCaseName})`);
-          return <span className={className}><svg width={size} height={size}></svg></span>;
-      }
-      return <span className={className} dangerouslySetInnerHTML={{ __html: iconNode.toSvg({ width: size, height: size }) }} />;
-  };
 
   const getRoleColor = (role) => {
     switch (role) {
@@ -1544,17 +1452,6 @@ const MyPerformancePage = ({ engineerData }) => {
     };
     fetchTeamAverages();
   }, []);
-
-  const Icon = (name, props = {}) => {
-      const { size = 20, className = '' } = props;
-      const camelCaseName = name.charAt(0).toLowerCase() + name.slice(1).replace(/-(\w)/g, g => g[1].toUpperCase());
-      const iconNode = lucide.icons[camelCaseName];
-      if (!iconNode) {
-          console.warn(`Lucide icon not found: ${name} (as ${camelCaseName})`);
-          return <span className={className}><svg width={size} height={size}></svg></span>;
-      }
-      return <span className={className} dangerouslySetInnerHTML={{ __html: iconNode.toSvg({ width: size, height: size }) }} />;
-  };
 
   if (!engineerData) {
     return <div className="p-8">Loading performance data...</div>;
@@ -1661,18 +1558,6 @@ const MyPerformancePage = ({ engineerData }) => {
 };
 
 const Sidebar = ({ userType, uploadedFileName, activeView, onNavigate }) => {
-  // This helper function renders icons from the global 'lucide' object
-  const Icon = (name, props = {}) => {
-      const { size = 20, className = '' } = props;
-      const camelCaseName = name.charAt(0).toLowerCase() + name.slice(1).replace(/-(\w)/g, g => g[1].toUpperCase());
-      const iconNode = lucide.icons[camelCaseName];
-      if (!iconNode) {
-          console.warn(`Lucide icon not found: ${name} (as ${camelCaseName})`);
-          return <span className={className}><svg width={size} height={size}></svg></span>;
-      }
-      return <span className={className} dangerouslySetInnerHTML={{ __html: iconNode.toSvg({ width: size, height: size }) }} />;
-  };
-
   const managerLinks = [
     { name: 'Home', iconName: 'Briefcase', view: 'home' },
     { name: 'AI Roster Generator', iconName: 'BrainCircuit', view: 'roster' },
@@ -1740,17 +1625,6 @@ const Sidebar = ({ userType, uploadedFileName, activeView, onNavigate }) => {
   );
 };
 const TeamAnalytics = ({ managerData }) => {
-  const Icon = (name, props = {}) => {
-      const { size = 20, className = '' } = props;
-      const camelCaseName = name.charAt(0).toLowerCase() + name.slice(1).replace(/-(\w)/g, g => g[1].toUpperCase());
-      const iconNode = lucide.icons[camelCaseName];
-      if (!iconNode) {
-          console.warn(`Lucide icon not found: ${name} (as ${camelCaseName})`);
-          return <span className={className}><svg width={size} height={size}></svg></span>;
-      }
-      return <span className={className} dangerouslySetInnerHTML={{ __html: iconNode.toSvg({ width: size, height: size }) }} />;
-  };
-
   if (!managerData || !managerData.analytics || !managerData.teamTickets) {
     return <div className="p-8">Loading...</div>;
   }
@@ -1999,7 +1873,6 @@ const App = () => {
   const [isAiAgentActive, setIsAiAgentActive] = React.useState(false);
   const [leaveRequests, setLeaveRequests] = React.useState([]);
   const [notifications, setNotifications] = React.useState([]);
-  const [employees, setEmployees] = React.useState([]);
 
   // --- EVENT HANDLERS ---
   const handleSwitchUserType = () => {
@@ -2113,7 +1986,6 @@ const App = () => {
       const employees = await employeesRes.json();
       const leaveRequestsData = await leaveRes.json();
 
-      setEmployees(employees);
       setLeaveRequests(leaveRequestsData);
 
       // Update manager data with fresh employee list
@@ -2153,7 +2025,7 @@ const App = () => {
     if (userType === 'manager') {
       switch (view) {
         case 'home':
-          return <ManagerDashboard managerData={managerData} />;
+          return <ManagerDashboard managerData={managerData} addNotification={addNotification} />;
         case 'roster':
           return <AIRosterGenerator onUploadSuccess={fetchInitialData} addNotification={addNotification} />;
         case 'analytics':
@@ -2161,7 +2033,7 @@ const App = () => {
         case 'schedule':
           return <ScheduleManager managerData={managerData} />;
         case 'gamification':
-          return <ManagerGamificationPage employees={employees} />;
+          return <ManagerGamificationPage />;
         case 'yearly_schedule':
           return <YearlySchedulePage userType={userType} engineerData={engineerData} managerData={managerData} />;
         case 'approvals':
@@ -2207,6 +2079,7 @@ const App = () => {
           userType={userType}
           engineerName={engineerData ? engineerData.name : ''}
           onSwitchUserType={handleSwitchUserType}
+          addNotification={addNotification}
         />
         <main className="flex-1 overflow-y-auto">
           {(managerData && engineerData) ? renderView() : <div className="p-8">Loading...</div>}
@@ -2312,17 +2185,6 @@ const GamificationDashboard = ({ engineerName }) => {
   const [gamificationData, setGamificationData] = React.useState({ points: 0, badges: [], isClockedIn: false });
   const [error, setError] = React.useState(null);
   const [message, setMessage] = React.useState('');
-
-  const Icon = (name, props = {}) => {
-      const { size = 20, className = '' } = props;
-      const camelCaseName = name.charAt(0).toLowerCase() + name.slice(1).replace(/-(\w)/g, g => g[1].toUpperCase());
-      const iconNode = lucide.icons[camelCaseName];
-      if (!iconNode) {
-          console.warn(`Lucide icon not found: ${name} (as ${camelCaseName})`);
-          return <span className={className}><svg width={size} height={size}></svg></span>;
-      }
-      return <span className={className} dangerouslySetInnerHTML={{ __html: iconNode.toSvg({ width: size, height: size }) }} />;
-  };
 
   const fetchData = async () => {
     try {
@@ -2447,17 +2309,6 @@ const Leaderboard = () => {
   const [leaderboardData, setLeaderboardData] = React.useState([]);
   const [error, setError] = React.useState(null);
 
-  const Icon = (name, props = {}) => {
-      const { size = 20, className = '' } = props;
-      const camelCaseName = name.charAt(0).toLowerCase() + name.slice(1).replace(/-(\w)/g, g => g[1].toUpperCase());
-      const iconNode = lucide.icons[camelCaseName];
-      if (!iconNode) {
-          console.warn(`Lucide icon not found: ${name} (as ${camelCaseName})`);
-          return <span className={className}><svg width={size} height={size}></svg></span>;
-      }
-      return <span className={className} dangerouslySetInnerHTML={{ __html: iconNode.toSvg({ width: size, height: size }) }} />;
-  };
-
   React.useEffect(() => {
     const fetchLeaderboard = async () => {
       try {
@@ -2502,11 +2353,25 @@ const Leaderboard = () => {
     </div>
   );
 };
-const AwardPoints = ({ employees }) => {
+const AwardPoints = () => {
+  const [employees, setEmployees] = React.useState([]);
   const [selectedEmployee, setSelectedEmployee] = React.useState('');
   const [points, setPoints] = React.useState(5); // Default to 5 diligence points
   const [message, setMessage] = React.useState('');
   const [error, setError] = React.useState('');
+
+  React.useEffect(() => {
+    const fetchEmployees = async () => {
+      try {
+        const response = await fetch('/api/employees');
+        const data = await response.json();
+        setEmployees(data);
+      } catch (error) {
+        setError('Failed to fetch employees');
+      }
+    };
+    fetchEmployees();
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -2582,12 +2447,12 @@ const AwardPoints = ({ employees }) => {
     </div>
   );
 };
-const ManagerGamificationPage = ({ employees }) => {
+const ManagerGamificationPage = () => {
   return (
     <div className="p-8 bg-gray-100 flex-1 space-y-8">
       <h1 className="text-3xl font-bold text-gray-800">Gamification Management</h1>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <AwardPoints employees={employees} />
+        <AwardPoints />
         <Leaderboard />
       </div>
     </div>
