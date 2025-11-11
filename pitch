@@ -1,7 +1,7 @@
 KPI Adherence: P0 Incident Response Time < 15 minutes.
 P1,P2  and P3 using Service now and uSH tickets
-Staffing Level (90%): This shows that the team is staffed at 90% of its required capacity. The green bar indicates this is likely within an acceptable range, but not perfect.
-Team Workload (65%): This represents how busy the team is, likely as a percentage of their total capacity. 65% suggests a moderate-to-busy workload.
+Staffing Level (90%): This shows that the team is staffed at 90% of its required capacity. 
+Team Workload (65%): This represents how busy the team is,  as a percentage of their total capacity. 65% suggests a moderate-to-busy workload.
 Burnout Risk (72%): This is a predictive metric calculated from factors like high workload, consecutive shifts, and low staffing. A 72% risk is high and indicates a potential problem that needs management attention.
 2. Radar (Next 72 Hours)
 We've moved from reactive dashboards to Predictive Forecasting. Our 'Future-Cast Radar' doesn't show you what happened; it shows you what is going to happen. We are predicting a 40% spike in Jira tickets on Friday at 3 PM. We don't just report the problem; we get ahead of it."
