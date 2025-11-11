@@ -21,8 +21,7 @@ It has a "Give Kudos" button for anyone to submit positive feedback.
 We built a Reasoning Engine.
 The Innovation is Reasoning, Not Just Logic: 
 It's built on a robust Flask backend and a modern React frontend.We are using dspy-ai machine learning framework. Our RosterGenerator is based on a dspy.Module. This means it reasons about complex, competing constraints—like workload balancing, role diversity, and project cost centers—to find the optimal, intelligent solution, not just the first one that works.
-You Moved from Reactive to Predictive: Our "Future-Cast Radar" isn't a dashboard. It's a crystal ball. It predicts burnout and ticket spikes before they happen. This is true, actionable AI.
-Couple of most innovative feature is the Engineer's "AI Assistant". When an engineer's leave is approved, their AI backup activates autonomously. This is the first step to a self-running organization.
+Couple of most innovative feature is the Engineer's "AI Assistant". When an engineer's leave is approved, their AI backup activates autonomously. This is the first step to a self-running team and Second one is on Gamification.
 3. Business Feasibility & Value Proposition
 The value proposition is simple: you are manufacturing the one resource that is impossible to buy: Time.
   The Value is Exponential: You give every manager hundreds of hours back per year. You take Our most expensive, high-leverage assets—Our managers—and you free them from a low-value administrative tasks,You let them stop managing and start leading.
