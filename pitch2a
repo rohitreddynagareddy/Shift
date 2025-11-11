@@ -1,3 +1,12 @@
+We built a Reasoning Engine.
+The Innovation is Reasoning, Not Just Logic: 
+It's built on a robust Flask backend and a modern React frontend.We are using dspy-ai machine learning framework. Our RosterGenerator is based on a dspy.Module. This means it reasons about complex, competing constraints—like workload balancing, role diversity, and project cost centers—to find the optimal, intelligent solution, not just the first one that works.
+Couple of most innovative feature is the Engineer's "AI Assistant". When an engineer's leave is approved, their AI backup activates autonomously. This is the first step to a self-running team and Second one is on Gamification.
+3. Business Feasibility & Value Proposition
+The value proposition is simple: you are manufacturing the one resource that is impossible to buy: Time.
+  The Value is Exponential: Roster genius will  give every manager hundreds of hours back per year. Roster genius  would take Our most innovative high-leverage assets—Our managers—and you free them from a low-value administrative tasks,You let them stop managing and start leading.
+Gamification is the "nudge" that optimizes the entire system.
+
 KPI Adherence: P0 Incident Response Time < 15 minutes.
 P1,P2  and P3 using Service now and uSH tickets
 Staffing Level (90%): This shows that the team is staffed at 90% of its required capacity. 
@@ -18,14 +27,7 @@ Purpose: This metric tries to quantify fairness by tracking the "weekend & eveni
 Purpose: This is a social recognition feed to boost morale.
 It has a "Give Kudos" button for anyone to submit positive feedback.
  It shows recent recognition, such as a manager praising Dhruvi for resolving a P1 (high-priority) ticket quickly and a team member (Naresh) thanking Rohit for help.
-We built a Reasoning Engine.
-The Innovation is Reasoning, Not Just Logic: 
-It's built on a robust Flask backend and a modern React frontend.We are using dspy-ai machine learning framework. Our RosterGenerator is based on a dspy.Module. This means it reasons about complex, competing constraints—like workload balancing, role diversity, and project cost centers—to find the optimal, intelligent solution, not just the first one that works.
-Couple of most innovative feature is the Engineer's "AI Assistant". When an engineer's leave is approved, their AI backup activates autonomously. This is the first step to a self-running team and Second one is on Gamification.
-3. Business Feasibility & Value Proposition
-The value proposition is simple: you are manufacturing the one resource that is impossible to buy: Time.
-  The Value is Exponential: Roster genius will  give every manager hundreds of hours back per year. Roster genius  would take Our most innovative high-leverage assets—Our managers—and you free them from a low-value administrative tasks,You let them stop managing and start leading.
-Gamification is the "nudge" that optimizes the entire system.
+
 Without Gamification: A manager sees an unpopular, critical shift. They have to force someone to take it. This creates resentment.
 We're not just "gamifying work." We are quantifying positive behavior and engineering a high-performance culture. Our system moves cultural concepts like "fairness" and "teamwork" from vague feelings to hard numbers that can be tracked.
 You provide instant gratification ("Leaderboards," public praise) to make that "win" feel good, reinforcing the positive behavior.
